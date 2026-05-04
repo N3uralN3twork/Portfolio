@@ -5,7 +5,7 @@ import { z } from "zod";
 
 export const contentKinds = ["work", "writing"] as const;
 export type ContentKind = (typeof contentKinds)[number];
-export const readingDifficulties = ["easy", "medium", "difficult"] as const;
+export const readingDifficulties = ["easy", "medium", "hard"] as const;
 export type ReadingDifficulty = (typeof readingDifficulties)[number];
 
 const linkSchema = z.object({

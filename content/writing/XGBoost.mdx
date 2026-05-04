@@ -180,11 +180,11 @@ the model. Even though it controls for both, most of the focus is on
 bias reduction.If the initial function in the first step of the
 algorithm is *f*<sub>*x*</sub> , then the initial residuals are the
 y-values.When this is the case, the final boosted model will be the
-following equation, where $\hat{f_{b}}(x)$ is the weak-learning
+following equation, where $\hat{{b}}(x)$ is the weak-learning
 decision tree from each iteration.
 
 $$
-\Large \hat{f}(x) = \sum_{b=1}^{B} \lambda \hat{f_{b}}(x)
+\Large \hat{f}(x) = \sum_{b=1}^{B} \lambda \hat{{b}}(x)
 $$
   
 There are three tuning parameters for boosting: B, , and d. The
@@ -256,7 +256,7 @@ regularization term is set to zero, the loss function is identical to
 traditional gradient boosting.  
 
 $$
-\Large L = \sum_{i}l(y_{i'}, \hat{y_{i}}) + \sum_{k}(\gamma T + \frac {1}{2} \lambda ||w||^{2})
+\Large L = \sum_{i}l(y_{i}, \hat{y}) + \sum_{k}(\gamma T + \frac {1}{2} \lambda ||w||^{2})
 $$
 
 The second major improvement on boosting is the use of second-order

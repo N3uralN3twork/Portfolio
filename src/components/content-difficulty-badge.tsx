@@ -19,8 +19,8 @@ const difficultyConfig: Record<
     label: "Medium",
     Icon: SignalMediumIcon,
   },
-  difficult: {
-    label: "Difficult",
+  hard: {
+    label: "Hard",
     Icon: SignalHighIcon,
   },
 };
