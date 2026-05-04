@@ -15,7 +15,7 @@ export default async function Home() {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-20 px-4 py-12 sm:px-6 lg:px-8">
       <section className="grid gap-10 lg:grid-cols-[1fr_0.9fr] lg:items-center">
-        <div className="flex flex-col gap-8">
+        <div className="motion-reveal flex flex-col gap-8">
           <div className="flex flex-wrap gap-2">
             {profile.focus.map((item) => (
               <Badge key={item} variant="secondary">
@@ -53,7 +53,9 @@ export default async function Home() {
             </a>
           </div>
         </div>
-        <HeroVisual />
+        <div className="motion-reveal" data-motion-delay="1">
+          <HeroVisual />
+        </div>
       </section>
 
       <Separator />
@@ -75,8 +77,14 @@ export default async function Home() {
           </Link>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
-          {featured.map((entry) => (
-            <ContentCard key={entry.href} entry={entry} />
+          {featured.map((entry, index) => (
+            <div
+              key={entry.href}
+              className="motion-reveal motion-card-lift"
+              data-motion-delay={index % 3}
+            >
+              <ContentCard entry={entry} />
+            </div>
           ))}
         </div>
       </section>

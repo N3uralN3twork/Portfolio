@@ -134,12 +134,16 @@ function ExperienceSection() {
         description="A data-driven timeline that can grow as new roles, projects, and responsibilities are added."
       />
 
-      <div className="relative flex flex-col gap-6 before:absolute before:bottom-6 before:left-5 before:top-6 before:w-px before:bg-border">
-        {experience.map((item) => {
+      <div className="motion-timeline-track relative flex flex-col gap-6 before:absolute before:bottom-6 before:left-5 before:top-6 before:w-px before:bg-border">
+        {experience.map((item, index) => {
           const Icon = experienceIcons[item.icon];
 
           return (
-            <article key={`${item.role}-${item.dateRange}`} className="relative grid gap-4 pl-14">
+            <article
+              key={`${item.role}-${item.dateRange}`}
+              className="motion-reveal relative grid gap-4 pl-14"
+              data-motion-delay={index % 3}
+            >
               <div className="absolute left-0 top-1 grid size-10 place-items-center rounded-full border bg-background shadow-sm">
                 <Icon className="size-5 text-muted-foreground" aria-hidden />
               </div>

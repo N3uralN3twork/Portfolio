@@ -209,3 +209,167 @@
     @apply overflow-x-auto overflow-y-hidden py-2;
   }
 }
+
+@layer utilities {
+  .motion-reveal {
+    transform: translateY(0);
+  }
+
+  .motion-card-lift {
+    transition:
+      transform 180ms ease,
+      box-shadow 180ms ease;
+  }
+
+  .motion-card-lift:hover {
+    transform: translateY(-3px);
+  }
+
+  .motion-metric-scrub {
+    transform-origin: center bottom;
+  }
+
+  .motion-fade-square {
+    animation: motion-fade-square 1.6s ease-in-out infinite alternate;
+  }
+
+  .motion-timeline-track::after {
+    content: "";
+    position: absolute;
+    bottom: 1.5rem;
+    left: 1.25rem;
+    top: 1.5rem;
+    width: 1px;
+    transform-origin: top;
+    background: var(--lab-accent);
+    opacity: 0.55;
+  }
+
+  .motion-code-highlight {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .motion-code-highlight::before {
+    content: "";
+    position: absolute;
+    inset: 3.4rem 0.75rem auto;
+    z-index: 0;
+    height: 1.85rem;
+    border-radius: var(--radius-sm);
+    background: color-mix(in oklch, var(--lab-accent) 20%, transparent);
+    opacity: 0.85;
+  }
+
+  .motion-code-highlight code {
+    position: relative;
+    z-index: 1;
+  }
+
+  @supports (animation-timeline: view()) {
+    .motion-reveal {
+      animation: motion-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 34%;
+    }
+
+    .motion-reveal[data-motion-delay="1"] {
+      animation-range: entry 8% cover 42%;
+    }
+
+    .motion-reveal[data-motion-delay="2"] {
+      animation-range: entry 14% cover 48%;
+    }
+
+    .motion-metric-scrub {
+      animation: motion-metric-scrub linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 52%;
+    }
+
+    .motion-timeline-track::after {
+      animation: motion-timeline-fill linear both;
+      animation-timeline: view();
+      animation-range: entry 5% cover 64%;
+    }
+
+    .motion-code-highlight::before {
+      animation: motion-code-highlight linear both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 42%;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .motion-reveal,
+    .motion-fade-square,
+    .motion-metric-scrub,
+    .motion-timeline-track::after,
+    .motion-code-highlight::before {
+      animation: none;
+      transform: none;
+    }
+
+    .motion-card-lift,
+    .motion-card-lift:hover {
+      transition: none;
+      transform: none;
+    }
+  }
+}
+
+@keyframes motion-fade-square {
+  from {
+    opacity: 0.18;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes motion-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes motion-metric-scrub {
+  from {
+    opacity: 0.62;
+    transform: translateY(16px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes motion-timeline-fill {
+  from {
+    transform: scaleY(0);
+  }
+
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes motion-code-highlight {
+  from {
+    opacity: 0;
+    transform: translateX(-20%);
+  }
+
+  to {
+    opacity: 0.85;
+    transform: translateX(0);
+  }
+}
