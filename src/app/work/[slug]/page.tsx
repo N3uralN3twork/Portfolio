@@ -14,6 +14,8 @@ type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
+export const dynamicParams = false;
+
 export async function generateStaticParams() {
   const entries = await getAllContent("work");
   return entries.map((entry) => ({ slug: entry.slug }));
