@@ -9,6 +9,7 @@ tags:
   - Statistics
   - Python
   - R
+  - ML
 featured: true
 difficulty: hard
 readingTime: 20 min read
@@ -124,7 +125,9 @@ Given a set of _n_ observations each consisting of _d_ dimensions, and wanting t
 
 Initially, points are assigned to the initial centroids, which in this case is the mean. After the points are assigned to the centroid, the centroid is then updated until no more changes occur and the algorithm converges. There is no guarantee, however, that the algorithm will converge. The objective is to minimize the pairwise squared deviations of points in the same cluster:
 
-$$\displaystyle argmin \sum_{i=1}^{k}\frac {1}{2 |S_i|} * \sum ||{x - y}||^{2}$$
+$$
+\arg\min_{S_1, \dots, S_k} \sum_{i=1}^{k} \sum_{x \in S_i} \|x - \mu_i\|^2
+$$
 
 The within cluster sum of squares, or what the _Sci-kit Learn_ package calls **inertia**, is a measure of how internally coherent separate clusters are. The optimal value is 0 while lower values indicate more separated clusters. _Sci-kit Learn_ uses Lloyd's algorithm which follows the steps in the algorithm presented above and uses the squared Euclidean distance.
 
@@ -153,7 +156,9 @@ The key operation of the Agglomerative Clustering algorithm is the calculation o
 
 Ward's method assumes that a cluster is represented by its centroid, but it measures the proximity between two clusters in terms of the increase in the SSE that results from merging the two clusters. Ward's method attempts to minimize the sum of the squared distances of points from their cluster centroids. The initial cluster distances in Ward' minimum variance method are defined to be the squared Euclidean distance between points:
 
-$$d_{ij} = ||X_i - X_j||^2$$
+$$
+d_{ij} = ||X_i - X_j||^2
+$$
 
 ### 3.2.2 Time and Space Complexity
 
@@ -228,7 +233,9 @@ $n_{k}$ = the number of observations belonging to cluster $C_{k}$
 
 This index is based on the average distance of the items to their respective cluster centroids. It is just the within-group sum of distances and is computed as:
 
-$$BH = \frac{W_k}{K}$$
+$$
+BH = \frac{W_k}{K}
+$$
 
 where $W_k = \displaystyle \sum ||x_i - \bar{x_i}||$ is the within-group dispersion matrix for the data clustered into $K$ clusters. This index requires the computation of centroids and $N$ within-group distances, which itself is $O(mN)$. Thus, Ball-Hall is $O(mN)$ where $m$ is the number of variables in the data set to be clustered.
 
@@ -240,7 +247,9 @@ The maximum difference in the Ball-Hall indices between different clusters is co
 
 Mathematically, the calculation of the Beale index is as follows:
 
-$$Beale = F = \frac {\frac {V_{kl}}{W_k + W_l}}{(\frac {n_m-1}{n_m-2})*2^{\frac {2}{p}}-1}$$
+$$
+Beale = F = \frac {\frac {V_{kl}}{W_k + W_l}}{(\frac {n_m-1}{n_m-2})*2^{\frac {2}{p}}-1}
+$$
 
 where $V_{kl} = W_m - W_k - W_l$ and $p$ is the number of variables.
 
@@ -248,7 +257,9 @@ where $V_{kl} = W_m - W_k - W_l$ and $p$ is the number of variables.
 
 The C index was reviewed by [Hubert and Levin, 1976](#C_Index) and is calculated below:
 
-$$C_{index} = \frac {S_w - S_{min}}{S_{max} - S_{min}}, C_{index} \in (0, 1)$$
+$$
+C_{index} = \frac {S_w - S_{min}}{S_{max} - S_{min}}, C_{index} \in (0, 1)
+$$
 
 where
 
@@ -264,15 +275,21 @@ The optimal number of clusters is indicated by the minimum value of the C index.
 
 The Calinski-Harabasz index [Calinski, Harabasz, 1974](#CH), also known as the Variance Ratio Criterion, is a measure of how similar an object is to its own cluster compared to other clusters. From _Sci-kit Learn's_ website, the score is defined as the ratio between the within-cluster dispersion and between-cluster dispersion. More formally put:
 
-$$CH_q = \frac{trace(B_k)/(K-1)}{trace(W_k)/(N-K)}$$
+$$
+CH_q = \frac{trace(B_k)/(K-1)}{trace(W_k)/(N-K)}
+$$
 
 where:
 
-$$W = \displaystyle \sum{W_k}$$
+$$
+W = \displaystyle \sum{W_k}
+$$
 
 and:
 
-$$W_k = \displaystyle \sum (x_i - \bar{x_m})(x_i - \bar{x_m})^{T}$$
+$$
+W_k = \displaystyle \sum (x_i - \bar{x_m})(x_i - \bar{x_m})^{T}
+$$
 
 and: $$trace(W_k) = \displaystyle \sum_{k=1}^n \sum (x_{ip} - \bar{x_{lp}})^{2}$$,
 
@@ -284,27 +301,39 @@ The maximum value of the CH score, given a range of clusters, is considered to b
 
 The CCC by [Sarle, 1983](#CCC) is obtained by comparing the observed $R^2$ to the approximate expected $R^2$ using an approximate variance-stabilizing transformation. CCC values greater than 0 mean that the obtained $R^2$ is greater than would be expected if sampling from a uniform distribution. According to the SAS Institute, the best way to use the CCC is to plot its values against the number of clusters. The CCC is used to compare the $R^{2}$ you obtain for a given set of clusters with the $R^{2}$ you would get by clustering a uniformly/normally distributed set of points in $p$ dimensional space. In addition, the optimal number of clusters is indicated by the maximum CCC value. Mathematically, the CCC can be computed as follows:
 
-$$CCC = ln[\frac {1 - E[R^{2}]}{1 - R^{2}}] * \frac {\sqrt{\frac {np}{2}}}{(0.001 + E[R^{2}])^{2}}$$
+$$
+CCC = ln[\frac {1 - E[R^{2}]}{1 - R^{2}}] * \frac {\sqrt{\frac {np}{2}}}{(0.001 + E[R^{2}])^{2}}
+$$
 
 where,
 
-$$R^{2} = 1 - \frac {p  + \sum u^{2}_j}{\sum u^{2}_j}$$
+$$
+R^{2} = 1 - \frac {p  + \sum u^{2}_j}{\sum u^{2}_j}
+$$
 
 and,
 
-$$E[R^{2}] = 1 - \displaystyle \frac {\sum_{j=1}^{p} \frac {1}{n + u_j} + \sum_{j=p+1}^{p} \frac {u^{2}_j}{n + u_j}}{\displaystyle \sum^{p}_{j=1} u^{2}_{j}} * [\frac {(n - k)^{2}}{n}] * [1 + \frac {4}{n}]$$
+$$
+E[R^{2}] = 1 - \displaystyle \frac {\sum_{j=1}^{p} \frac {1}{n + u_j} + \sum_{j=p+1}^{p} \frac {u^{2}_j}{n + u_j}}{\displaystyle \sum^{p}_{j=1} u^{2}_{j}} * [\frac {(n - k)^{2}}{n}] * [1 + \frac {4}{n}]
+$$
 
 and,
 
-$$u_j = \frac {s_j}{c}$$
+$$
+u_j = \frac {s_j}{c}
+$$
 
 and,
 
-$$c = (\frac {v}{k})^{\frac {1}{p}}$$
+$$
+c = (\frac {v}{k})^{\frac {1}{p}}
+$$
 
 and,
 
-$$v = \displaystyle \prod_{j=1}^{p} s_{j}$$
+$$
+v = \displaystyle \prod_{j=1}^{p} s_{j}
+$$
 
 and,
 

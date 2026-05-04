@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRightIcon, BeakerIcon, InfoIcon, SigmaIcon } from "lucide-react";
+import { ArrowUpRightIcon, BeakerIcon, InfoIcon} from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
