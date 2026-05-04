@@ -2,7 +2,6 @@ import type { MDXComponents } from "mdx/types";
 import Link from "next/link";
 import {
   Callout,
-  Equation,
   LabChart,
   LinkCard,
   ProjectMetric,
@@ -37,7 +36,6 @@ export const mdxComponents: MDXComponents = {
   ),
   pre: MdxPre,
   Callout,
-  Equation,
   LabChart,
   LinkCard,
   ProjectMetric,

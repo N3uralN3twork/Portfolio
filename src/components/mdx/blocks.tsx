@@ -20,15 +20,6 @@ export function Callout({
   );
 }
 
-export function Equation({ expression }: { expression: string }) {
-  return (
-    <div className="my-6 flex items-center gap-3 rounded-lg border bg-muted/40 p-4 font-mono text-sm">
-      <SigmaIcon className="shrink-0 text-muted-foreground" aria-hidden />
-      <code>{expression}</code>
-    </div>
-  );
-}
-
 export function ProjectMetric({
   label,
   value,
