@@ -1,65 +1,85 @@
-import Image from "next/image";
+import Link from "next/link";
+import { ArrowRightIcon, DownloadIcon, MailIcon } from "lucide-react";
+import { ContentCard } from "@/components/content-card";
+import { HeroVisual } from "@/components/hero-visual";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { buttonVariants } from "@/components/ui/button";
+import { getAllContent } from "@/lib/content";
+import { profile } from "@/lib/profile";
 
-export default function Home() {
+export default async function Home() {
+  const entries = await getAllContent();
+  const featured = entries.filter((entry) => entry.meta.featured).slice(0, 3);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-20 px-4 py-12 sm:px-6 lg:px-8">
+      <section className="grid gap-10 lg:grid-cols-[1fr_0.9fr] lg:items-center">
+        <div className="flex flex-col gap-8">
+          <div className="flex flex-wrap gap-2">
+            {profile.focus.map((item) => (
+              <Badge key={item} variant="secondary">
+                {item}
+              </Badge>
+            ))}
+          </div>
+          <div className="flex flex-col gap-5">
+            <h1 className="max-w-3xl text-5xl font-semibold leading-tight tracking-normal sm:text-6xl">
+              Data systems, ML experiments, and statistical notes with low
+              latency instincts.
+            </h1>
+            <p className="max-w-2xl text-lg leading-8 text-muted-foreground">
+              {profile.shortBio}
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Link className={buttonVariants({ size: "lg" })} href="/work">
+              View work
+              <ArrowRightIcon data-icon="inline-end" />
+            </Link>
             <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              className={buttonVariants({ variant: "outline", size: "lg" })}
+              href={`mailto:${profile.email}`}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
+              Contact
+              <MailIcon data-icon="inline-end" />
+            </a>
             <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              className={buttonVariants({ variant: "ghost", size: "lg" })}
+              href={profile.resumePath}
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              Resume
+              <DownloadIcon data-icon="inline-end" />
+            </a>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <HeroVisual />
+      </section>
+
+      <Separator />
+
+      <section className="flex flex-col gap-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-3xl font-semibold tracking-normal">
+              Featured research and systems work
+            </h2>
+            <p className="mt-2 max-w-2xl text-muted-foreground">
+              Seeded examples show the intended shape: case studies, math-heavy
+              notes, code, and reproducible evaluation thinking.
+            </p>
+          </div>
+          <Link href="/writing" className="inline-flex items-center gap-2 text-sm font-medium">
+            Browse writing
+            <ArrowRightIcon aria-hidden />
+          </Link>
         </div>
-      </main>
+        <div className="grid gap-4 md:grid-cols-3">
+          {featured.map((entry) => (
+            <ContentCard key={entry.href} entry={entry} />
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

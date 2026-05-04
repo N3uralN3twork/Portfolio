@@ -1,0 +1,37 @@
+---
+title: Retrieval evaluation lab
+summary: A reproducible evaluation workspace for ranking retrieval runs by quality, cost, and tail latency.
+date: "2026-02-05"
+tags:
+  - llms
+  - retrieval
+  - evaluation
+type: work
+status: prototype
+readingTime: 8 min read
+links:
+  - label: Experiment log
+    href: https://github.com/
+featured: true
+---
+
+Retrieval systems become difficult to reason about when every change is measured on a different slice of data. This lab keeps corpora, chunking, embeddings, rerankers, and prompts versioned together.
+
+<Callout title="Design bias">
+Optimize for comparisons that can be repeated, not one-off leaderboards that look decisive and then evaporate.
+</Callout>
+
+The scoring function combines relevance and latency:
+
+$$
+J = nDCG@10 - 0.08 \cdot \log(1 + p95)
+$$
+
+```python
+def rank_run(run):
+    return run.ndcg_at_10 - 0.08 * math.log1p(run.latency_p95_ms)
+```
+
+<LinkCard title="Related note" href="/writing/llm-evaluation-harness">
+The LLM evaluation harness note describes the test-case contract behind this style of lab.
+</LinkCard>

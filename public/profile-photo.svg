@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-labelledby="title desc">
+  <title id="title">Profile photo placeholder</title>
+  <desc id="desc">A replaceable abstract profile image for the portfolio.</desc>
+  <rect width="640" height="640" fill="#111827"/>
+  <circle cx="320" cy="260" r="112" fill="#e5e7eb"/>
+  <path d="M132 590c20-118 91-180 188-180s168 62 188 180" fill="#e5e7eb"/>
+  <path d="M88 112c91-74 199-93 323-57 58 17 105 48 141 93" fill="none" stroke="#22d3ee" stroke-width="18" stroke-linecap="round"/>
+  <path d="M104 502c70 42 145 62 225 59 83-3 151-28 207-75" fill="none" stroke="#a3e635" stroke-width="14" stroke-linecap="round"/>
+</svg>
