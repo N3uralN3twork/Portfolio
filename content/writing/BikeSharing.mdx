@@ -1,8 +1,8 @@
 ---
 author: Matthias Quinn
 title: Bike Sharing
-bannerImg: /images/blog/Time-Series-Logo.png
-cardImg: /images/blog/Time-Series-Logo.png
+bannerImg: /images/Time-Series-Logo.png
+cardImg: /images/Time-Series-Logo.png
 date: 2017-08-22T00:00:00Z
 category: Projects
 tags:
@@ -90,7 +90,7 @@ ggplot(data = df, aes(x = Date, y = count)) +
        xlab("")
 ```
 
-![](/images/blog/BikeSharing/unnamed-chunk-4-1.png)
+![](/images/BikeSharing/unnamed-chunk-4-1.png)
 
 As you can see, the number of bikes has a rather large decrease during
 months. That's probably why you don't see bikers in December in the
@@ -131,7 +131,7 @@ ggplot(data = df, aes(x = Date, y = count)) +
       geom_line(col = "orange")
 ```
 
-![](/images/blog/BikeSharing/unnamed-chunk-6-1.png)
+![](/images/BikeSharing/unnamed-chunk-6-1.png)
 
 1.  Moving Average
 
@@ -151,7 +151,7 @@ ggplot(data = df) +
     ylab("Bicycle Count")
 ```
 
-![](/images/blog/BikeSharing/unnamed-chunk-7-1.png)
+![](/images/BikeSharing/unnamed-chunk-7-1.png)
 
 Now that is cool.
 
@@ -190,7 +190,7 @@ deseasonal.count <- seasadj(decomp)
 plot(decomp)
 ```
 
-![](/images/blog/BikeSharing/unnamed-chunk-8-1.png)
+![](/images/BikeSharing/unnamed-chunk-8-1.png)
 
 1.  Stationarity
 
@@ -244,7 +244,7 @@ ACF plots show correlation between a series and its lags.
 Acf(count.MA, type = "correlation")
 ```
 
-![](/images/blog/BikeSharing/unnamed-chunk-10-1.png)
+![](/images/BikeSharing/unnamed-chunk-10-1.png)
 
 If you notice the little blue dots, those act as confidence intervals.
 Now, when your correlation crosses those blue lines, there is pretty
@@ -254,7 +254,7 @@ strong evidence for autocorrelation.
 Pacf(count.MA)
 ```
 
-![](/images/blog/BikeSharing/unnamed-chunk-11-1.png)
+![](/images/BikeSharing/unnamed-chunk-11-1.png)
 
 We can use differencing to correct this problem.
 
@@ -266,7 +266,7 @@ count.D1 <- diff(deseasonal.count, differences = 1)
 plot(count.D1)
 ```
 
-![](/images/blog/BikeSharing/unnamed-chunk-12-1.png)
+![](/images/BikeSharing/unnamed-chunk-12-1.png)
 
 ``` r
 #That looks a lot more stationary
@@ -305,13 +305,13 @@ the choice of P or Q for our model.
 Acf(count.D1) #Looks like 7
 ```
 
-![](/images/blog/BikeSharing/unnamed-chunk-14-1.png)
+![](/images/BikeSharing/unnamed-chunk-14-1.png)
 
 ``` r
 Pacf(count.D1) #7 as well
 ```
 
-![](/images/blog/BikeSharing/unnamed-chunk-14-2.png)
+![](/images/BikeSharing/unnamed-chunk-14-2.png)
 
 This suggests that we may want to try models with AR or MA components of
 order 1, 2, or 7.
@@ -382,7 +382,7 @@ no significant autocorrelations present.
 tsdisplay(fit$residuals, lag.max = 45, main = "(1,1,1) Model Residuals")
 ```
 
-![](/images/blog/BikeSharing/unnamed-chunk-16-1.png)
+![](/images/BikeSharing/unnamed-chunk-16-1.png)
 
 Looking at ACF/PACF and the residuals, our model may be better off with
 a different parameter value such as P=7 or Q=7.
@@ -416,7 +416,7 @@ tsdisplay(fit2$residuals, lag.max = 15, main = "Seasonal Model Residuals",
           col = "blue")
 ```
 
-![](/images/blog/BikeSharing/unnamed-chunk-18-1.png)
+![](/images/BikeSharing/unnamed-chunk-18-1.png)
 
 ``` r
 #HOORAY!
@@ -475,7 +475,7 @@ Fcast
 plot(Fcast)
 ```
 
-![](/images/blog/BikeSharing/unnamed-chunk-20-1.png)
+![](/images/BikeSharing/unnamed-chunk-20-1.png)
 
 The light-blue line above shows the fit provided by the model. But just
 how well did our model do?
@@ -493,7 +493,7 @@ plot(Fcast.no.holdout)
 lines(ts(deseasonal.count))
 ```
 
-![](/images/blog/BikeSharing/unnamed-chunk-21-1.png)
+![](/images/BikeSharing/unnamed-chunk-21-1.png)
 
 Notice how the Blue line is kind of just linear and flat.
 
