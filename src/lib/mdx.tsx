@@ -5,10 +5,11 @@ import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { mdxComponents } from "@/mdx-components";
+import { normalizeMdxStyleAttributes } from "@/lib/mdx-style";
 
 export async function renderMdx(source: string) {
   const result = await compileMDX({
-    source,
+    source: normalizeMdxStyleAttributes(source),
     components: mdxComponents,
     options: {
       parseFrontmatter: false,

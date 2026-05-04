@@ -1,24 +1,22 @@
-<!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
-
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
-<!-- END:nextjs-agent-rules -->
-
-## Code Search
+---
+name: semble-search
+description: Code search agent for exploring any codebase. Use for finding code by intent, locating implementations, understanding how something works, or discovering related code. Prefer over Grep/Glob/Read for any semantic or exploratory question.
+tools: Bash, Read
+---
 
 Use `semble search` to find code by describing what it does or naming a symbol/identifier, instead of grep:
 
-​```bash
+```bash
 semble search "authentication flow" ./my-project
 semble search "save_pretrained" ./my-project
 semble search "save model to disk" ./my-project --top-k 10
-​```
+```
 
 Use `semble find-related` to discover code similar to a known location (pass `file_path` and `line` from a prior search result):
 
-​```bash
+```bash
 semble find-related src/auth.py 42 ./my-project
-​```
+```
 
 `path` defaults to the current directory when omitted; git URLs are accepted.
 

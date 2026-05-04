@@ -6,13 +6,14 @@ tags:
   - llms
   - evaluation
   - python
-type: writing
-status: published
-readingTime: 6 min read
 links:
   - label: Harness sketch
     href: https://github.com/
 featured: false
+difficulty: easy
+readingTime: 6 min read
+type: writing
+status: published
 ---
 
 LLM evaluation should feel closer to database migration testing than dashboard vibes. A prompt change is a code change, and a model setting change is a runtime change.

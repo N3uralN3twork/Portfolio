@@ -8,6 +8,7 @@ import {
   ProjectMetric,
 } from "@/components/mdx/blocks";
 import { MdxPre } from "@/components/mdx/mdx-pre";
+import { parseMdxStyleString } from "@/lib/mdx-style";
 
 export const mdxComponents: MDXComponents = {
   a: ({ href = "", children, ...props }) => {
@@ -26,6 +27,14 @@ export const mdxComponents: MDXComponents = {
       </a>
     );
   },
+  col: ({ style, ...props }) => (
+    <col
+      style={
+        typeof style === "string" ? parseMdxStyleString(style) : style
+      }
+      {...props}
+    />
+  ),
   pre: MdxPre,
   Callout,
   Equation,

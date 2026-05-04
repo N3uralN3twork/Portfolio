@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRightIcon } from "lucide-react";
+import { ContentDifficultyBadge } from "@/components/content-difficulty-badge";
+import { ContentImage } from "@/components/content-image";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -9,14 +11,36 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { ContentEntry } from "@/lib/content";
+import { cn } from "@/lib/utils";
 
 export function ContentCard({ entry }: { entry: ContentEntry }) {
+  const image = entry.meta.cardImage ?? entry.meta.bannerImage;
+
   return (
-    <Card className="h-full transition-colors hover:bg-muted/30">
+    <Card
+      className={cn(
+        "h-full transition-colors hover:bg-muted/30",
+        image && "pt-0",
+      )}
+    >
+      {image ? (
+        <Link href={entry.href} aria-label={entry.meta.title}>
+          <ContentImage
+            src={image}
+            alt={entry.meta.imageAlt ?? ""}
+            sizes="(min-width: 768px) 50vw, 100vw"
+            className="aspect-[16/9] rounded-t-xl"
+            imageClassName="transition-transform group-hover/card:scale-[1.02]"
+          />
+        </Link>
+      ) : null}
       <CardHeader>
-        <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-          <span>{formatDate(entry.meta.date)}</span>
-          <span>{entry.meta.readingTime}</span>
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+          <div className="flex flex-wrap gap-3">
+            <span>{formatDate(entry.meta.date)}</span>
+            <span>{entry.meta.readingTime}</span>
+          </div>
+          <ContentDifficultyBadge difficulty={entry.meta.difficulty} />
         </div>
         <CardTitle className="text-xl leading-tight">
           <Link href={entry.href}>{entry.meta.title}</Link>

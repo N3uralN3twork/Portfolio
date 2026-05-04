@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { ContentDifficultyBadge } from "@/components/content-difficulty-badge";
+import { ContentImage } from "@/components/content-image";
 import { Badge } from "@/components/ui/badge";
-import { getAllContent, getContentBySlug } from "@/lib/content";
+import {
+  getAllContent,
+  getContentBannerImage,
+  getContentBySlug,
+} from "@/lib/content";
 import { renderMdx } from "@/lib/mdx";
 
 type PageProps = {
@@ -36,6 +42,7 @@ export default async function WritingDetailPage({ params }: PageProps) {
   }
 
   const content = await renderMdx(entry.body);
+  const bannerImage = getContentBannerImage(entry.meta);
 
   return (
     <article className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-12 sm:px-6 lg:px-8">
@@ -57,8 +64,18 @@ export default async function WritingDetailPage({ params }: PageProps) {
           <span>{entry.meta.date}</span>
           <span>{entry.meta.readingTime}</span>
           <span>{entry.meta.status}</span>
+          <ContentDifficultyBadge difficulty={entry.meta.difficulty} />
         </div>
       </header>
+      {bannerImage ? (
+        <ContentImage
+          src={bannerImage}
+          alt={entry.meta.imageAlt ?? ""}
+          sizes="(min-width: 768px) 768px, 100vw"
+          preload
+          className="aspect-[16/9] rounded-lg"
+        />
+      ) : null}
       <div className="prose-lab">{content}</div>
     </article>
   );

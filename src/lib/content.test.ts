@@ -2,6 +2,8 @@ import { describe, expect, test } from "vitest";
 import {
   buildSearchIndex,
   getAllContent,
+  getContentBannerImage,
+  getContentCardImage,
   getContentBySlug,
   validateContentMeta,
 } from "./content";
@@ -19,6 +21,9 @@ describe("content contract", () => {
         readingTime: "8 min read",
         links: [{ label: "Code", href: "https://github.com/example/repo" }],
         featured: true,
+        cardImage: "/images/cards/retrieval.png",
+        bannerImage: "/images/banners/retrieval.png",
+        difficulty: "medium",
       },
       "content/writing/latency-aware-retrieval.mdx",
     );
@@ -26,6 +31,50 @@ describe("content contract", () => {
     expect(meta.title).toBe("Latency-aware retrieval pipelines");
     expect(meta.tags).toEqual(["llms", "systems"]);
     expect(meta.featured).toBe(true);
+    expect(meta.cardImage).toBe("/images/cards/retrieval.png");
+    expect(meta.bannerImage).toBe("/images/banners/retrieval.png");
+    expect(meta.difficulty).toBe("medium");
+  });
+
+  test("normalizes legacy image frontmatter and optional metadata defaults", () => {
+    const meta = validateContentMeta(
+      {
+        title: "Being a Researcher",
+        date: "2024-05-11T00:00:00Z",
+        tags: ["Statistics", "R"],
+        cardImg: "/images/blog/ADD-Health-Logo.jpeg",
+        bannerImg: "/images/blog/ADD-Health-Logo.jpeg",
+        difficulty: "easy",
+      },
+      "content/writing/ADDHealth.mdx",
+      "This is a short reflection on research work.",
+    );
+
+    expect(meta.summary).toBe("Being a Researcher");
+    expect(meta.date).toBe("2024-05-11");
+    expect(meta.type).toBe("writing");
+    expect(meta.status).toBe("published");
+    expect(meta.readingTime).toBe("1 min read");
+    expect(meta.links).toEqual([]);
+    expect(meta.cardImage).toBe("/images/blog/ADD-Health-Logo.jpeg");
+    expect(meta.bannerImage).toBe("/images/blog/ADD-Health-Logo.jpeg");
+    expect(meta.difficulty).toBe("easy");
+  });
+
+  test("selects card and banner image fallbacks from normalized metadata", () => {
+    const meta = validateContentMeta(
+      {
+        title: "Image fallbacks",
+        date: "2026-04-10",
+        tags: ["visuals"],
+        type: "writing",
+        cardImage: "/images/cards/fallback.png",
+      },
+      "content/writing/image-fallbacks.md",
+    );
+
+    expect(getContentCardImage(meta)).toBe("/images/cards/fallback.png");
+    expect(getContentBannerImage(meta)).toBe("/images/cards/fallback.png");
   });
 
   test("rejects content missing required frontmatter with a clear file path", () => {
