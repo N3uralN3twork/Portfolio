@@ -1,19 +1,35 @@
 import Link from "next/link";
-import { ArrowUpRightIcon, BeakerIcon, InfoIcon} from "lucide-react";
+import {
+  AlertTriangleIcon,
+  ArrowUpRightIcon,
+  BeakerIcon,
+  InfoIcon,
+} from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 export function Callout({
   title,
+  type = "info",
   children,
 }: {
   title: string;
+  type?: "info" | "warning";
   children: React.ReactNode;
 }) {
+  const Icon = type === "warning" ? AlertTriangleIcon : InfoIcon;
+
   return (
-    <Alert className="my-6">
-      <InfoIcon />
+    <Alert
+      className={cn(
+        "my-6",
+        type === "warning" &&
+          "border-destructive/40 bg-destructive/10 text-destructive",
+      )}
+      variant={type === "warning" ? "destructive" : "default"}
+    >
+      <Icon />
       <AlertTitle>{title}</AlertTitle>
       <AlertDescription>{children}</AlertDescription>
     </Alert>

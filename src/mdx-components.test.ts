@@ -84,4 +84,34 @@ describe("mdx component helpers", () => {
       expect(demo).not.toMatch(/from "framer-motion"/);
     }
   });
+
+  test("registers the randomization schema builder and typed callouts", async () => {
+    const [registry, builder, blocks] = await Promise.all([
+      readFile(path.join(process.cwd(), "src", "mdx-components.tsx"), "utf8"),
+      readFile(
+        path.join(
+          process.cwd(),
+          "src",
+          "components",
+          "mdx",
+          "randomization-schema-builder.tsx",
+        ),
+        "utf8",
+      ),
+      readFile(
+        path.join(process.cwd(), "src", "components", "mdx", "blocks.tsx"),
+        "utf8",
+      ),
+    ]);
+
+    expect(registry).toContain("RandomizationSchemaBuilder");
+    expect(registry).toContain("@/components/mdx/randomization-schema-builder");
+    expect(builder).toContain('"use client"');
+    expect(builder).toMatch(/from "motion\/react"/);
+    expect(builder).toContain("useReducedMotion");
+    expect(builder).toContain("buildRandomizationSchema");
+    expect(builder).not.toMatch(/from "framer-motion"/);
+    expect(blocks).toContain('type = "info"');
+    expect(blocks).toContain('"warning"');
+  });
 });

@@ -10,6 +10,7 @@ import { BayesianABDemo } from "@/components/mdx/bayesian-ab-demo";
 import { LowLatencyCppDemo } from "@/components/mdx/low-latency-cpp-demo";
 import { MdxPre } from "@/components/mdx/mdx-pre";
 import { RandomForestDemo } from "@/components/mdx/random-forest-demo";
+import { RandomizationSchemaBuilder } from "@/components/mdx/randomization-schema-builder";
 import { parseMdxStyleString } from "@/lib/mdx-style";
 
 export const mdxComponents: MDXComponents = {
@@ -45,6 +46,7 @@ export const mdxComponents: MDXComponents = {
   BayesianABDemo,
   LowLatencyCppDemo,
   RandomForestDemo,
+  RandomizationSchemaBuilder,
 };
 
 export function useMDXComponents(): MDXComponents {

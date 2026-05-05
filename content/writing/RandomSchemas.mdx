@@ -1,0 +1,261 @@
+---
+author: Matthias Quinn
+title: Designing Randomized Schemas
+summary: One of the most difficult projects I did in a statistics class during grad school.
+cardImg: /images/Design-of-Experiments-Latin-Square.png
+bannerImg: /images/Design-of-Experiments-Latin-Square.png
+date: 2020-08-10T00:00:00Z
+tags:
+  - Statistics
+  - R
+featured: false
+difficulty: hard
+readingTime: 10 min read
+type: writing
+status: published
+---
+
+# Randomized Schemas
+
+Around the Fall 2020, during the middle of a graduate semester at my university, I was lucky to be in one of the best classes that I ever remember taking.
+It was called `Statistical Consulting` and was meant for graduate students finishing up there Master's degrees in Statistics at CSU.
+The professor was known to be one of the best, and she certainly lived up to all of the expectations that I had heard over the years from other classmates of mine.
+It should be noted that while I am ambitious, I used to get inside my head a lot and pretend that I could do things that I actually couldn't. This project was a clear example of that.
+I think it was around the end of the semester, so the end of the class too, that we were given these list of tasks to do from the project guidelines and, at first, it looked easy.
+
+Take a look at these requirements I extracted from the original Word doc and see if you agree with my naive self!
+
+## Project Requirements
+
+### Prerequisites
+Generate a randomization schema for 100 people with a 1:1 T:C ratio.
+* Describe how to do this
+* $ [0,0,0…..1,1,1] \rarrow $  “shuffle it” --> Sampling without replacement
+* `Rep(sample)` --> Don't do this
+* Use the `replicate()` function
+
+### Goal
+The professor should be able to give your code and directions to any statistics student and they should be able to reproduce the same schema that you have, which represents the desired study design.
+The input to your programs should be the parameters of #sites, #subjects/site, Randomization ratio, stratification levels.
+
+1. Write code to create a reproducible completely randomized design schema for S subjects at T sites in blocks of B where randomization is N:D treatment:control
+    a. Example 1:  30 subjects at site one in blocks of 6 where randomization is 1:1 treatment:control
+        i. I want the result to be a sequential list of 30 codes that look like AAA##(T or C)
+        ii. AAA01T, AAA02T, AAA03C,…, AAA30T
+    b. Example 2:  48 subjects at each of two sites in blocks of 12 where randomization is 3:1 treatment:control
+        i. I want the result to be a sequential list of 96 codes that look like AAA##(T or C) or BBB##(T or C)
+        ii.	AAA01T, AAA02T, AAA03C,…, AAA48T, BBB01T, BBB02T, BBB03C,…, BBB48T, 
+
+### Deliverables
+A. Provide the code
+B. Provide the schema output
+C. Be able to explain the code to another student
+D. Present schema to class and answer questions
+
+### Additional Notes
+You can use any software you'd like as long as someone else can setup and run your code
+There are some useful functions and procedures that may be helpful to start:
+    * `PROC PLAN` in SAS
+    * `randomizeR` in R
+
+### Grading Checklist
+1. Code works as required and it will be tested by other classmate(s) of yours.
+2. Code is well documented so future users don't require directions to use (this will be graded).
+3. You can explain the code that you wrote.
+4. You can answer any questions that either the professor or classmates might ask.
+5. You can discuss flexibility possibilities that are present in your code, i.e. potential improvements.
+
+## My Naivete Bites Me
+
+<Callout title="My bias">
+I have since grown past this behavior.
+</Callout>
+
+It should noted to the reader that I had heard about this tough project like a semester earlier because I was friends with and worked with someone who took the class then.
+She said it was really difficult and needed to think about solutions pretty heavily before implementing anything. Excellent advice even for my work today too now that I think about it.
+Now, unfortunately, I thought I was hot stuff in grad school since I was finally in classes that I cared about and practiced actively on the side. Foreshadowing is a literary device.
+
+Long story short, I didn't do so well on the first pass and got not so good feedback from my professor.
+
+## Locking In
+After a rather brutal review of my first pass, along with feeling bad beforehand since I knew that my code didn't work properly, I knew that I needed to lock in and make sure that it didn't happen again.
+So, I did.
+The final result was me learning a lot about not only designing experiments with practical use-cases, but also a lot about my own ego and how to keep it in check.
+
+## Notes
+
+**INPUT:**
+* A list of site codes (character)
+* The number of subjects per site (integer)
+* The randomization ratio (>= 1)
+* Number of factors in your experiment (>= 0)
+
+**OUTPUT:**
+* A sequential list of N codes inside a dataframe object
+* An empty data vector for each factor
+
+**For each site do the following:**
+* Store site in dataframe N times each
+* Add numbers (1-K) to end of each site code in dataframe
+* Randomly assign (T/C) to end of each site code in dataframe
+
+**Assigning the numbers:**
+* Based on your row number for each site
+* If less than 10, assign a "0" between the code and the number
+* Otherwise, assign no space between the code and the number
+
+**Randomization Ratio:**
+* Number of Treatment subjects == (N/(N+D))*NSubjects:
+* Number of Control subjects == (NSubjects - TSubjects)
+* (1, 1/2) , (2, 2/3), (3, 3/4), (4, 4/5), etc. = (n, n/n+1)
+
+**If a negative number is input, it will take the absolute value of the input**
+
+## Interactive Application
+
+<RandomizationSchemaBuilder />
+
+## Designing a Schema That Is Actually Valid
+
+The thing I missed on my first pass was that a randomization schema is not just a cute string generator. It is a compact representation of the study design. If the schema is wrong, the downstream analysis inherits that mistake before anyone has collected a single outcome.
+
+The design starts with the experimental unit. In this assignment, the unit is a person enrolled at a site. That means the generated row should represent one subject, and every subject should have exactly one site, one subject number, one block, one treatment assignment, and any pre-treatment stratification values used by the design.
+
+<Callout title="Schema design checklist" type="info">
+Before writing the generator, write down the unit, site structure, allocation ratio, block size, seed policy, and every stratification variable. If one of those fields is still fuzzy, the code will only make the fuzziness faster.
+</Callout>
+
+The next step is deciding what deserves to be a block or stratum. Blocking is useful when assignment should be balanced inside meaningful groups, such as site or baseline risk. Stratification should use variables known before assignment. It should not use anything affected by treatment, measured after enrollment, or revised after seeing outcomes.
+
+For a two-arm design, the block size has to respect the treatment:control ratio. A 3:1 ratio has four ratio parts, so block sizes like 4, 8, or 12 can produce exact block-level balance. A block size of 6 cannot represent 3:1 exactly without fractional people, which remains unpopular with both statisticians and people.
+
+<Callout title="Do not hide allocation problems inside code" type="warning">
+A reproducible sequence is not the same as allocation concealment. In a real trial, the people enrolling participants should not be able to predict or inspect future assignments just because the schema exists.
+</Callout>
+
+The base R version can be written with `set.seed()` and `sample(..., replace = FALSE)`. The important detail is that each block starts with the exact number of `T` and `C` labels required by the ratio, then shuffles those labels without replacement.
+
+```r
+make_block <- function(block_size, ratio = c(T = 1, C = 1)) {
+  ratio_total <- sum(ratio)
+
+  if (block_size %% ratio_total != 0) {
+    stop("block_size must be divisible by the ratio total")
+  }
+
+  labels <- rep(names(ratio), times = block_size * ratio / ratio_total)
+  sample(labels, size = length(labels), replace = FALSE)
+}
+
+set.seed(2020)
+make_block(block_size = 6, ratio = c(T = 1, C = 1))
+```
+
+For a complete schema, build the subject rows first, then assign inside blocks. This keeps ID creation separate from treatment assignment, which makes the code easier to audit.
+
+```r
+library(dplyr)
+library(tidyr)
+
+set.seed(2020)
+
+sites <- c("AAA", "BBB")
+subjects_per_site <- 12
+block_size <- 6
+ratio <- c(T = 1, C = 1)
+
+schema <- tidyr::expand_grid(
+  Site = sites,
+  SubjectIndex = seq_len(subjects_per_site)
+) |>
+  group_by(Site) |>
+  mutate(
+    Subject = sprintf("%02d", SubjectIndex),
+    Block = paste(Site, ceiling(SubjectIndex / block_size), sep = "-")
+  ) |>
+  group_by(Site, Block) |>
+  mutate(
+    Group = make_block(block_size = n(), ratio = ratio),
+    Code = paste0(Site, Subject, Group)
+  ) |>
+  ungroup() |>
+  select(Code, Site, Subject, Block, Group)
+
+schema
+```
+
+If you are using `randomizr`, `block_ra()` gives you a purpose-built assignment function for blocked randomization. It is a better choice than manually sampling labels once the design gets more than a classroom exercise.
+
+```r
+library(dplyr)
+library(tidyr)
+library(randomizr)
+
+set.seed(2020)
+
+schema <- tidyr::expand_grid(
+  Site = c("AAA", "BBB"),
+  SubjectIndex = seq_len(12)
+) |>
+  mutate(
+    Subject = sprintf("%02d", SubjectIndex),
+    Block = paste(Site, ceiling(SubjectIndex / 6), sep = "-"),
+    Group = block_ra(
+      blocks = Block,
+      conditions = c("T", "C"),
+      block_m_each = matrix(
+        rep(c(3, 3), length(unique(Block))),
+        ncol = 2,
+        byrow = TRUE
+      )
+    ),
+    Code = paste0(Site, Subject, Group)
+  ) |>
+  select(Code, Site, Subject, Block, Group)
+
+schema
+```
+
+The final habit is validation. The generator should not silently produce an impossible or imbalanced design. Check the shape of the result before handing it to someone else.
+
+```r
+validate_schema <- function(schema, expected_block_size, ratio = c(T = 1, C = 1)) {
+  block_counts <- table(schema$Block)
+  group_counts <- table(schema$Block, schema$Group)
+
+  stopifnot(all(block_counts == expected_block_size))
+  stopifnot(all(group_counts[, "T"] == expected_block_size * ratio["T"] / sum(ratio)))
+  stopifnot(all(group_counts[, "C"] == expected_block_size * ratio["C"] / sum(ratio)))
+  stopifnot(!anyDuplicated(schema$Code))
+
+  invisible(TRUE)
+}
+
+validate_schema(schema, expected_block_size = 6, ratio = c(T = 1, C = 1))
+```
+
+## Sources I Would Use Now
+
+<LinkCard title="randomizr block_ra documentation" href="https://declaredesign.org/r/randomizr/reference/block_ra.html">
+Documentation for blocked random assignment, including fixed counts and probabilities inside blocks.
+</LinkCard>
+
+<LinkCard title="R sample documentation" href="https://search.r-project.org/R/refmans/base/html/sample.html">
+Base R reference for sampling and permutations with and without replacement.
+</LinkCard>
+
+<LinkCard title="R random number generation" href="https://search.r-project.org/R/refmans/base/html/Random.html">
+Base R reference for RNG state, `set.seed()`, and reproducible random streams.
+</LinkCard>
+
+<LinkCard title="CONSORT randomisation checklist items" href="https://www.ncbi.nlm.nih.gov/books/NBK379654/">
+Checklist language for sequence generation, blocking restrictions, allocation concealment, and implementation.
+</LinkCard>
+
+<LinkCard title="FDA ICH E9 statistical principles" href="https://www.fda.gov/regulatory-information/search-fda-guidance-documents/e9-statistical-principles-clinical-trials">
+Regulatory guidance overview for statistical principles in clinical trial design and analysis.
+</LinkCard>
+
+<LinkCard title="NIST/SEMATECH Engineering Statistics Handbook" href="https://www.nist.gov/programs-projects/nistsematech-engineering-statistics-handbook">
+A practical statistical methods reference for experiment design and applied analysis.
+</LinkCard>
