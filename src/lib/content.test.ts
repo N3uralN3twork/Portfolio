@@ -100,6 +100,12 @@ describe("content contract", () => {
     expect(writing.map((entry) => entry.slug)).toContain(
       "bayesian-ab-testing",
     );
+    expect(writing.map((entry) => entry.slug)).toContain(
+      "random-forests-deep-dive",
+    );
+    expect(writing.map((entry) => entry.slug)).toContain(
+      "low-latency-cpp-techniques",
+    );
     expect(work.map((entry) => entry.slug)).toContain(
       "streaming-feature-platform",
     );
@@ -115,6 +121,22 @@ describe("content contract", () => {
         "Experimentation",
       ]),
     );
+
+    const randomForestPost = await getContentBySlug(
+      "writing",
+      "random-forests-deep-dive",
+    );
+    expect(randomForestPost.meta.difficulty).toBe("hard");
+    expect(randomForestPost.body).toMatch(/out-of-bag error/i);
+    expect(randomForestPost.body).toMatch(/variance reduction/i);
+
+    const lowLatencyPost = await getContentBySlug(
+      "writing",
+      "low-latency-cpp-techniques",
+    );
+    expect(lowLatencyPost.meta.difficulty).toBe("hard");
+    expect(lowLatencyPost.body).toMatch(/tail latency/i);
+    expect(lowLatencyPost.body).toMatch(/false sharing/i);
 
     const project = await getContentBySlug("work", "streaming-feature-platform");
     expect(project.meta.type).toBe("work");
@@ -146,5 +168,13 @@ describe("content contract", () => {
       .toMatch(/credible interval/i);
     expect(index.find((item) => item.slug === "bayesian-ab-testing")?.text)
       .toMatch(/p b a/i);
+    expect(index.find((item) => item.slug === "random-forests-deep-dive")?.text)
+      .toMatch(/bootstrap aggregation/i);
+    expect(index.find((item) => item.slug === "random-forests-deep-dive")?.text)
+      .toMatch(/out of bag/i);
+    expect(index.find((item) => item.slug === "low-latency-cpp-techniques")?.text)
+      .toMatch(/cache locality/i);
+    expect(index.find((item) => item.slug === "low-latency-cpp-techniques")?.text)
+      .toMatch(/p99/i);
   });
 });

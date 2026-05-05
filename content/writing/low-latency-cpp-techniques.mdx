@@ -1,0 +1,222 @@
+---
+title: Low-Latency C++ Techniques for the Hot Path
+summary: A practitioner deep dive into latency measurement, cache locality, allocation avoidance, branch predictability, atomics, false sharing, syscalls, and p99 discipline.
+date: "2026-05-05"
+tags:
+  - C++
+  - Systems
+  - Performance
+  - Low Latency
+featured: false
+difficulty: hard
+type: writing
+status: published
+---
+
+Low-latency C++ is not just "make the code fast." It is the discipline of protecting a critical path from unpredictable work. The fastest version of a system is usually not the cleverest version. It is the version where the hot path has fewer allocations, fewer cache misses, fewer branch surprises, fewer kernel crossings, and fewer contended writes.
+
+The first rule is measurement. Averages hide the pain. If a request usually completes in $20$ nanoseconds but occasionally takes $2{,}000$ nanoseconds, users and trading systems do not experience the mean. They experience the tail.
+
+For a stream of latencies $L_1, L_2, \ldots, L_n$, the $p$-quantile is the value below which fraction $p$ of observations fall:
+
+$$
+Q(p) = \inf\{x : F_L(x) \ge p\}
+$$
+
+In practice, $p50$, $p95$, and $p99$ tell different stories. The median says what the typical path does. The p99 says what the system does under unlucky combinations of cache state, scheduling, contention, and rare branches.
+
+## Start With a Budget
+
+Before optimizing, split the request into measured stages:
+
+$$
+T_{\text{total}} = \sum_{i=1}^{k} T_i
+$$
+
+That equation is not profound, but it prevents fantasy. If parsing costs $35$ ns, queueing costs $40$ ns, and a syscall costs $150$ ns, no amount of template cleverness in a $5$ ns branch will save the design.
+
+A simple benchmark harness should use a monotonic clock, warm the code, keep the compiler from deleting the work, and store enough samples to inspect quantiles:
+
+```cpp
+#include <algorithm>
+#include <chrono>
+#include <cstdint>
+#include <vector>
+
+template <class Fn>
+std::vector<std::uint64_t> measure_ns(Fn&& fn, int iterations) {
+    using clock = std::chrono::steady_clock;
+    std::vector<std::uint64_t> samples;
+    samples.reserve(iterations);
+
+    for (int i = 0; i < iterations; ++i) {
+        auto start = clock::now();
+        fn();
+        auto stop = clock::now();
+        samples.push_back(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(
+                stop - start).count());
+    }
+
+    std::sort(samples.begin(), samples.end());
+    return samples;
+}
+```
+
+Microbenchmarks are easy to fool, so they should not be the only evidence. Still, they are useful when they isolate one claim: "this allocation is gone," "this branch is now predictable," or "this data layout removes a cache miss."
+
+## Allocation Avoidance
+
+Dynamic allocation is not always slow, but it is rarely predictable enough for a hot path. A general-purpose allocator may touch shared state, search free lists, split blocks, call into the OS, or create cache misses. Even if the average cost is fine, the tail latency can be ugly.
+
+The low-latency pattern is to move allocation to initialization or to a cold path. Use fixed buffers, arenas, object pools, and ownership rules that make the hot path reuse memory:
+
+```cpp
+struct Message {
+    std::uint64_t timestamp;
+    std::uint32_t instrument_id;
+    double price;
+    double quantity;
+};
+
+class MessagePool {
+public:
+    explicit MessagePool(std::size_t capacity) : storage_(capacity) {}
+
+    Message& acquire(std::size_t slot) noexcept {
+        return storage_[slot % storage_.size()];
+    }
+
+private:
+    std::vector<Message> storage_;
+};
+```
+
+This is not an argument for replacing every allocator everywhere. It is an argument for refusing to allocate per message when the message path has a latency budget.
+
+## Cache Locality
+
+Modern CPUs are fast when data is already near the core and much less fast when data is somewhere else. A rough cost model is:
+
+$$
+\operatorname{cycles} \approx
+\operatorname{work\ cycles} +
+\operatorname{misses} \times \operatorname{miss\ penalty}
+$$
+
+Cache locality often matters more than instruction count. If a loop walks a compact array of hot fields, the hardware prefetcher can help. If it follows pointers across the heap, each object can become a memory lottery ticket.
+
+Prefer a hot/cold split when a large struct has fields that are not needed on the critical path:
+
+```cpp
+struct OrderHot {
+    std::uint64_t id;
+    double price;
+    double quantity;
+    std::uint32_t side;
+};
+
+struct OrderCold {
+    char symbol[16];
+    char account[32];
+    std::uint64_t audit_flags;
+};
+```
+
+The goal is to pack the data that the hot path actually reads. Smaller hot records mean more useful records per cache line and fewer misses per batch.
+
+## Branch Predictability
+
+A branch misprediction flushes speculative work. If a branch is almost always taken, the predictor learns it. If the branch is random, the CPU pays a penalty often.
+
+The expected branch penalty can be sketched as:
+
+$$
+E[\operatorname{branch\ cost}] =
+p_{\text{miss}} C_{\text{miss}}
+$$
+
+One technique is to make the common path visually and mechanically obvious:
+
+```cpp
+void process(const Message& msg) {
+    if (msg.quantity <= 0.0) [[unlikely]] {
+        reject(msg);
+        return;
+    }
+
+    update_book(msg);
+}
+```
+
+Attributes like `[[likely]]` and `[[unlikely]]` are hints, not a substitute for measurement. They are most useful when they match a stable production distribution and keep rare work out of the common path.
+
+## Atomics and False Sharing
+
+Atomics are necessary for many low-latency designs, but an atomic is not just a normal integer with a fancy type. It participates in the memory model, can constrain compiler and CPU reordering, and can move cache lines between cores.
+
+False sharing happens when independent variables live on the same cache line and different cores write them. The variables are logically separate but physically coupled. Each write invalidates the other core's copy of the line.
+
+For counters updated by different threads, separate them:
+
+```cpp
+#include <atomic>
+#include <cstddef>
+
+struct alignas(64) PaddedCounter {
+    std::atomic<std::uint64_t> value{0};
+};
+
+struct Metrics {
+    PaddedCounter producer_events;
+    PaddedCounter consumer_events;
+};
+```
+
+The `alignas(64)` choice assumes a 64-byte cache line, which is common but still a platform detail worth confirming. The larger lesson is not "pad everything." The lesson is to isolate contended writes and use the weakest memory ordering that preserves correctness.
+
+For a single-producer, single-consumer queue, `memory_order_release` on publish and `memory_order_acquire` on consume may be enough. `memory_order_seq_cst` is simpler to reason about, but it can be more expensive than the algorithm needs.
+
+## Syscalls, Waiting, and Little's Law
+
+Crossing into the kernel is often the largest item in a low-latency budget. Network I/O, timers, locks that sleep, and file operations can all move work from a predictable user-space path into a less predictable system path.
+
+Batching can reduce syscall frequency. Busy polling can reduce wake-up latency at the cost of CPU. Blocking can save CPU at the cost of slower response. There is no universal answer because latency and resource usage trade against each other.
+
+Little's Law gives a useful queueing sanity check:
+
+$$
+L = \lambda W
+$$
+
+The average number of items in the system $L$ equals arrival rate $\lambda$ times average time in system $W$. If arrival rate increases while service time stays fixed, queue depth rises. Once queue depth rises, tail latency rises faster than intuition expects.
+
+That is why backpressure matters. A system that accepts infinite work can protect throughput in the short term while destroying p99 latency.
+
+## Watching the Hot Path Shrink
+
+The lab below follows the same stages from the guide. Step through the latency budget and watch each technique remove work or reduce variance in the critical path. The exact numbers are illustrative, but the shape is the point: p99 improves when the rare expensive work stops sharing space with the common path.
+
+<LowLatencyCppDemo />
+
+The most important visual is the gap between p50 and p99. Optimizing the median can make a dashboard look better while leaving rare pauses untouched. Low-latency engineering is mostly an argument with the right tail.
+
+## A Practical Checklist
+
+A good low-latency C++ review asks these questions:
+
+1. What is the measured p50, p95, and p99 for the real path?
+2. Which stage owns the largest part of $T_{\text{total}}$?
+3. Does the hot path allocate, lock, sleep, throw, log, or call into the kernel?
+4. Are hot fields contiguous and small enough to fit cache lines well?
+5. Are rare branches isolated from common branches?
+6. Are atomics using the weakest correct memory order?
+7. Is backpressure explicit before queues grow without bound?
+
+The answer is allowed to be "we do not know yet." That is better than optimizing a story.
+
+## Conclusion
+
+Low-latency C++ rewards mechanical sympathy. The CPU likes predictable branches, nearby data, uncontended cache lines, and straight-line work. The operating system is powerful, but kernel crossings and scheduling decisions belong outside the hottest path when possible. The allocator is useful, but per-message allocation belongs in the cold path when the budget is tight.
+
+The reliable workflow is measure, budget, remove unpredictable work, and remeasure. Treat latency as a distribution, not a scalar. The mean tells you where the center is; p99 tells you whether the system is trustworthy when conditions stop being friendly.

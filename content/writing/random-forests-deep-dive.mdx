@@ -1,0 +1,158 @@
+---
+title: Random Forests, Variance, and Out-of-Bag Error
+summary: A practitioner deep dive into bootstrap aggregation, decorrelated trees, majority votes, OOB error, and why random forests work so well on tabular data.
+date: "2026-05-05"
+tags:
+  - ML
+  - Statistics
+  - Random Forests
+  - Ensembles
+featured: false
+difficulty: hard
+type: writing
+status: published
+---
+
+Random forests are one of the best examples of a simple idea becoming powerful because the details are disciplined. A single decision tree is flexible, interpretable in small cases, and happy to model nonlinear interactions. It is also unstable. Small changes in the training data can create a different sequence of splits, which means the fitted tree can have high variance even when the bias is low.
+
+A random forest keeps the low-bias part and attacks the variance. It trains many trees on bootstrap samples, injects randomness into the split search, and combines predictions by averaging or majority vote. The result is not magic. It is an engineered reduction in correlated error.
+
+For a regression forest with $B$ trees, each tree produces a prediction $\hat f_b(x)$. The forest prediction is:
+
+$$
+\hat f_{\text{rf}}(x) = \frac{1}{B}\sum_{b=1}^{B}\hat f_b(x)
+$$
+
+For classification, the forest usually votes:
+
+$$
+\hat y_{\text{rf}}(x) = \operatorname{mode}\{\hat f_1(x), \hat f_2(x), \ldots, \hat f_B(x)\}
+$$
+
+Those equations look almost too plain. The interesting question is why averaging noisy trees helps, and why the randomness has to happen in two places: rows and features.
+
+## From One Tree to Many
+
+A CART-style tree recursively partitions the feature space. At a node $t$, the algorithm searches for a feature $j$ and threshold $s$ that split the rows into left and right regions:
+
+$$
+R_L(j, s) = \{x : x_j \le s\}, \quad R_R(j, s) = \{x : x_j > s\}
+$$
+
+For regression, the split can minimize squared error:
+
+$$
+\sum_{i:x_i \in R_L}(y_i - \bar y_L)^2 +
+\sum_{i:x_i \in R_R}(y_i - \bar y_R)^2
+$$
+
+For classification, the split often maximizes impurity reduction. With class proportions $p_{mk}$ in node $m$, Gini impurity is:
+
+$$
+G_m = \sum_{k=1}^{K} p_{mk}(1-p_{mk}) = 1 - \sum_{k=1}^{K}p_{mk}^2
+$$
+
+Entropy is:
+
+$$
+H_m = -\sum_{k=1}^{K}p_{mk}\log p_{mk}
+$$
+
+The algorithm chooses the split with the largest weighted impurity decrease:
+
+$$
+\Delta I =
+I(t) - \frac{N_L}{N_t}I(t_L) - \frac{N_R}{N_t}I(t_R)
+$$
+
+If you grow the tree deeply, it can capture interactions and sharp boundaries. That is useful, but it also means the tree can chase sample noise. Random forests keep the deep trees and reduce instability by averaging many versions of the tree.
+
+## Bootstrap Aggregation
+
+Bootstrap aggregation, usually shortened to bagging, creates $B$ bootstrap datasets. Each dataset $D_b$ is sampled with replacement from the original training set $D$:
+
+$$
+D_b \sim \operatorname{sample}_n(D)
+$$
+
+Because sampling is with replacement, some rows appear multiple times in a tree's training sample and some rows do not appear at all. For large $n$, the probability that a row is excluded from a bootstrap sample is approximately:
+
+$$
+\left(1 - \frac{1}{n}\right)^n \approx e^{-1} \approx 0.368
+$$
+
+That means each tree leaves out about $36.8\%$ of the rows. These held-out rows are the out-of-bag rows for that tree, and they become a built-in validation signal.
+
+If tree $b$ did not train on row $i$, then tree $b$ can produce an out-of-bag prediction for that row. Let $B_i$ be the set of trees where row $i$ was out of bag. An OOB regression prediction is:
+
+$$
+\hat f_{\text{OOB}}(x_i) = \frac{1}{|B_i|}\sum_{b \in B_i}\hat f_b(x_i)
+$$
+
+The out-of-bag error is then:
+
+$$
+\operatorname{Err}_{\text{OOB}} =
+\frac{1}{n}\sum_{i=1}^{n} L(y_i, \hat f_{\text{OOB}}(x_i))
+$$
+
+That estimate is not a replacement for a final untouched test set, but it is extremely useful while tuning because it uses the training process itself to estimate generalization.
+
+## Why Feature Subsampling Matters
+
+Bagging alone helps, but it has a weakness: if one feature is very predictive, many trees will choose it near the root. Those trees become similar. Similar trees make similar errors. Averaging only helps a little when errors are highly correlated.
+
+Random forests add a second source of randomness. At each split, the tree considers only $m_{\text{try}}$ candidate features out of $p$ total features:
+
+$$
+m_{\text{try}} < p
+$$
+
+For classification, a common default is $m_{\text{try}} \approx \sqrt p$. For regression, a common default is closer to $p/3$, though modern libraries expose this as a tunable hyperparameter.
+
+The goal is not to make each individual tree better. The goal is to make the ensemble better. If each tree has variance $\sigma^2$ and pairwise error correlation $\rho$, then the variance of the average of $B$ equally variable trees is:
+
+$$
+\operatorname{Var}(\bar f) =
+\rho\sigma^2 + \frac{1-\rho}{B}\sigma^2
+$$
+
+This equation is the heart of the method. Increasing $B$ shrinks the second term, but the first term remains if the trees are correlated. Feature subsampling targets $\rho$. Bootstrap sampling and random feature search make the trees disagree in useful ways, so the vote or average becomes more stable.
+
+<Callout title="The practical tradeoff">
+A random forest does not need every tree to be great. It needs many strong-enough trees whose mistakes are not identical.
+</Callout>
+
+## Watching the Forest Build Its Prediction
+
+The lab below follows the same formulas from the walkthrough. Step through the bootstrap sample, feature subsampling, tree votes, OOB estimate, and variance reduction equation. The point is to connect each visual step to a quantity you would actually explain when defending a model.
+
+<RandomForestDemo />
+
+Notice that the animation does not treat the forest as a black box. The repeated rows come from $D_b \sim \operatorname{sample}_n(D)$. The held-out row becomes part of the out of bag estimate. The tree votes become the majority-vote classifier. The last step shows why decorrelation matters: once $\rho$ is large, adding more trees has diminishing returns.
+
+## Variable Importance and Failure Modes
+
+Random forests often expose feature importance, but the number needs care. Mean decrease in impurity is fast because it accumulates split gains during training:
+
+$$
+\operatorname{Imp}(x_j) =
+\sum_{\text{splits on } j} \Delta I
+$$
+
+This can favor continuous or high-cardinality features because they offer more possible split points. Permutation importance is usually more decision-oriented. Shuffle one feature in validation data, measure the performance drop, and ask how much the model relied on that feature:
+
+$$
+\operatorname{PermImp}(x_j) =
+\operatorname{Score}(D) - \operatorname{Score}(D_{\pi(j)})
+$$
+
+That still has caveats. Correlated features can share importance, leakage can make importance look impressive for the wrong reason, and a forest trained on biased data will faithfully learn biased structure.
+
+Random forests are strong when the data is tabular, relationships are nonlinear, interactions matter, and you want a reliable baseline without heavy preprocessing. They can struggle when extrapolation matters, when the signal is extremely sparse and high dimensional, or when calibrated probabilities are required. A forest probability is a vote fraction, not automatically a calibrated posterior probability.
+
+## Conclusion
+
+Random forests work because they combine deep, flexible trees in a way that reduces variance without forcing a rigid functional form. Bootstrap aggregation creates multiple training views, feature subsampling decorrelates errors, majority vote or averaging stabilizes predictions, and out-of-bag error gives a built-in generalization check.
+
+Boosting often wins when you need the strongest possible tabular accuracy and have time to tune learning rate, depth, regularization, and early stopping. Random forests remain valuable because their default behavior is robust, their math is explainable, and their failure modes are easy to reason about. The useful mental model is simple: grow many noisy trees, make their noise less correlated, and let the ensemble cancel what any one tree gets wrong.

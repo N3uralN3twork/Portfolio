@@ -45,4 +45,43 @@ describe("mdx component helpers", () => {
     expect(demo).toContain("layoutId");
     expect(demo).not.toMatch(/from "framer-motion"/);
   });
+
+  test("registers the formula-grounded Motion demos for new writing posts", async () => {
+    const [registry, randomForestDemo, lowLatencyDemo] = await Promise.all([
+      readFile(path.join(process.cwd(), "src", "mdx-components.tsx"), "utf8"),
+      readFile(
+        path.join(
+          process.cwd(),
+          "src",
+          "components",
+          "mdx",
+          "random-forest-demo.tsx",
+        ),
+        "utf8",
+      ),
+      readFile(
+        path.join(
+          process.cwd(),
+          "src",
+          "components",
+          "mdx",
+          "low-latency-cpp-demo.tsx",
+        ),
+        "utf8",
+      ),
+    ]);
+
+    expect(registry).toContain("RandomForestDemo");
+    expect(registry).toContain("@/components/mdx/random-forest-demo");
+    expect(registry).toContain("LowLatencyCppDemo");
+    expect(registry).toContain("@/components/mdx/low-latency-cpp-demo");
+
+    for (const demo of [randomForestDemo, lowLatencyDemo]) {
+      expect(demo).toContain('"use client"');
+      expect(demo).toMatch(/from "motion\/react"/);
+      expect(demo).toContain("useReducedMotion");
+      expect(demo).toContain("motion.");
+      expect(demo).not.toMatch(/from "framer-motion"/);
+    }
+  });
 });

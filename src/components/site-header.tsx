@@ -5,10 +5,10 @@ import type { SearchIndexItem } from "@/lib/content";
 import { profile } from "@/lib/profile";
 
 const navItems = [
+  { label: "About", href: "/about" },
   { label: "Work", href: "/work" },
   { label: "Writing", href: "/writing" },
   { label: "Animations", href: "/animations" },
-  { label: "About", href: "/about" },
 ];
 
 export function SiteHeader({ searchIndex }: { searchIndex: SearchIndexItem[] }) {
