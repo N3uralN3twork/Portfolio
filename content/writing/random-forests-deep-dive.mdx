@@ -15,7 +15,7 @@ status: published
 
 Random forests are one of the best examples of a simple idea becoming powerful because the details are disciplined. A single decision tree is flexible, interpretable in small cases, and happy to model nonlinear interactions. It is also unstable. Small changes in the training data can create a different sequence of splits, which means the fitted tree can have high variance even when the bias is low.
 
-A random forest keeps the low-bias part and attacks the variance. It trains many trees on bootstrap samples, injects randomness into the split search, and combines predictions by averaging or majority vote. The result is not magic. It is an engineered reduction in correlated error.
+A random forest keeps the low-bias part and attacks the variance. It trains many trees on bootstrap samples, injects randomness into the split search, and combines predictions by averaging or majority vote. The result is not magic. It is engineered variance reduction through less correlated error.
 
 For a regression forest with $B$ trees, each tree produces a prediction $\hat f_b(x)$. The forest prediction is:
 
@@ -123,13 +123,39 @@ This equation is the heart of the method. Increasing $B$ shrinks the second term
 A random forest does not need every tree to be great. It needs many strong-enough trees whose mistakes are not identical.
 </Callout>
 
+## When to Use Random Forests
+
+Random forests are a strong default when you have tabular data, a mix of numeric and categorical signals, and a suspicion that interactions matter. They are especially useful when the decision boundary is nonlinear but you do not yet know which transformations to hand-engineer. A forest can learn rules like "low usage is only dangerous when support tickets are high" without forcing you to specify that interaction ahead of time.
+
+They are also good baseline models. If a random forest performs poorly, it often tells you something useful about the feature set: the signal may be weak, the target may be noisy, leakage may be missing from your offline data, or the prediction problem may need a different framing. If it performs well, you get a robust reference point before spending time on more delicate tuning.
+
+Use a random forest when:
+
+- The data is mostly tabular and the sample size is large enough to train many trees.
+- Nonlinear thresholds and feature interactions are likely.
+- You want a reliable model with modest preprocessing.
+- You need a sanity-check baseline before tuning gradient boosting or neural models.
+- You value out-of-bag error, permutation importance, and partial-dependence style diagnostics.
+
+Be more cautious when:
+
+- Extrapolation matters. Trees predict by partitioning observed feature space; they do not extend trends naturally outside the training range.
+- The feature space is extremely sparse and high dimensional, as in many text problems.
+- You need tightly calibrated probabilities. A class vote fraction is useful, but it is not automatically a calibrated posterior probability.
+- Inference latency or memory footprint is constrained. Hundreds of deep trees can be heavier than a small linear model.
+- You need a compact explanation for every individual prediction. You can explain a forest, but it is not as transparent as a shallow tree or linear model.
+
+The most common alternative is gradient boosting, including libraries such as XGBoost, LightGBM, and CatBoost. Boosting builds trees sequentially, with each tree correcting errors from the previous ensemble. It often wins tabular prediction contests because it can reduce bias and variance with careful regularization, learning rates, and early stopping. The tradeoff is that it is easier to overfit, more sensitive to tuning, and less forgiving of sloppy validation.
+
+Logistic regression or another regularized linear model is usually better when the relationship is close to additive, the dataset is sparse, or the main requirement is interpretability and calibration. A single decision tree is better when the goal is a human-readable policy, not maximum accuracy. Support vector machines can work well on medium-sized datasets with clean margins, but they are less convenient at large tabular scale. k-nearest neighbors is useful as a local-similarity baseline, though it becomes expensive at prediction time and struggles as dimension grows. Neural networks become attractive when the data is unstructured, very large, or representation learning matters; for ordinary business tables, a tuned tree ensemble is often a tougher baseline than people expect.
+
 ## Watching the Forest Build Its Prediction
 
-The lab below follows the same formulas from the walkthrough. Step through the bootstrap sample, feature subsampling, tree votes, OOB estimate, and variance reduction equation. The point is to connect each visual step to a quantity you would actually explain when defending a model.
+The lab below turns the classification equation into a click target. The feature space is a simple churn example: usage frequency on one axis and support-ticket intensity on the other. Click a customer profile, then add trees to watch the decision regions repaint as more bootstrapped, feature-randomized trees contribute votes.
 
 <RandomForestDemo />
 
-Notice that the animation does not treat the forest as a black box. The repeated rows come from $D_b \sim \operatorname{sample}_n(D)$. The held-out row becomes part of the out of bag estimate. The tree votes become the majority-vote classifier. The last step shows why decorrelation matters: once $\rho$ is large, adding more trees has diminishing returns.
+Notice that the animation does not treat the forest as a black box. The individual trees disagree near the boundary because each tree saw a different bootstrap sample and a different subset of candidate split features. The final class is still the majority-vote classifier, but the vote fraction is only confidence-like. It is a useful summary of tree agreement, not a calibrated probability.
 
 ## Variable Importance and Failure Modes
 

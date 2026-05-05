@@ -11,6 +11,7 @@ featured: false
 difficulty: hard
 type: writing
 status: published
+readingTime: 20 min read
 ---
 
 Low-latency C++ is not just "make the code fast." It is the discipline of protecting a critical path from unpredictable work. The fastest version of a system is usually not the cleverest version. It is the version where the hot path has fewer allocations, fewer cache misses, fewer branch surprises, fewer kernel crossings, and fewer contended writes.
@@ -183,7 +184,7 @@ Crossing into the kernel is often the largest item in a low-latency budget. Netw
 
 Batching can reduce syscall frequency. Busy polling can reduce wake-up latency at the cost of CPU. Blocking can save CPU at the cost of slower response. There is no universal answer because latency and resource usage trade against each other.
 
-Little's Law gives a useful queueing sanity check:
+[Little's Law](https://en.wikipedia.org/wiki/Little%27s_law), from mathematical queuing theory apparently, gives a useful queueing sanity check:
 
 $$
 L = \lambda W

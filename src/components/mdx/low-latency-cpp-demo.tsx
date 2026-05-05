@@ -20,6 +20,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { MdxDemoCard } from "@/components/mdx/wide-demo-card";
 
 const stages = [
   {
@@ -117,7 +118,7 @@ export function LowLatencyCppDemo() {
   const progress = (stageIndex + 1) / stages.length;
 
   return (
-    <Card className="not-prose my-10 overflow-hidden border-border/80 bg-card/95">
+      <MdxDemoCard>
       <CardHeader className="gap-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-2">
@@ -134,12 +135,12 @@ export function LowLatencyCppDemo() {
               line isolation, syscall control, and p99 thinking.
             </CardDescription>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:w-[32rem]">
+          <div className="flex w-full flex-wrap gap-2 lg:max-w-[36rem] lg:justify-end">
             {stages.map((item, index) => (
               <Button
                 key={item.id}
                 aria-pressed={stageIndex === index}
-                className="justify-start"
+                className="h-auto min-h-7 justify-start whitespace-normal px-3 py-1.5 text-left leading-snug"
                 onClick={() => setStageIndex(index)}
                 size="sm"
                 type="button"
@@ -153,7 +154,7 @@ export function LowLatencyCppDemo() {
       </CardHeader>
 
       <CardContent className="space-y-5">
-        <div className="grid gap-5 rounded-lg border bg-background p-4 xl:grid-cols-[1fr_18rem]">
+        <div className="grid gap-5 rounded-lg border bg-background p-4 2xl:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="space-y-4">
             <HotPathChart
               optimized={optimized}
@@ -178,7 +179,7 @@ export function LowLatencyCppDemo() {
           />
         </div>
       </CardContent>
-    </Card>
+    </MdxDemoCard>
   );
 }
 
