@@ -30,7 +30,7 @@ Take a look at these requirements I extracted from the original Word doc and see
 ### Prerequisites
 Generate a randomization schema for $100$ people with a $1:1$ T:C ratio.
 * Describe how to do this
-* $ [0,0,0…..1,1,1]$ -->  “shuffle it” --> Sampling without replacement
+* $[0,0,0…..1,1,1]$ -->  “shuffle it” --> Sampling without replacement
 * `Rep(sample)` --> Don't do this
 * Use the `replicate()` function
 
@@ -39,17 +39,26 @@ The professor should be able to give your code and directions to any statistics 
 The input to your programs should be the parameters of #sites, #subjects/site, Randomization ratio, stratification levels.
 
 1. Write code to create a reproducible completely randomized design schema for S subjects at T sites in blocks of B where randomization is $N:D$ treatment:control
+    
     a. Example 1:  30 subjects at site one in blocks of 6 where randomization is $1:1$ treatment:control
+    
         i. I want the result to be a sequential list of 30 codes that look like AAA##(T or C)
+    
         ii. AAA01T, AAA02T, AAA03C,…, AAA30T
+    
     b. Example 2:  48 subjects at each of two sites in blocks of 12 where randomization is 3:1 treatment:control
+    
         i. I want the result to be a sequential list of 96 codes that look like AAA##(T or C) or BBB##(T or C)
+    
         ii.	AAA01T, AAA02T, AAA03C,…, AAA48T, BBB01T, BBB02T, BBB03C,…, BBB48T, 
 
 ### Deliverables
 A. Provide the code
+
 B. Provide the schema output
+
 C. Be able to explain the code to another student
+
 D. Present schema to class and answer questions
 
 ### Additional Notes
