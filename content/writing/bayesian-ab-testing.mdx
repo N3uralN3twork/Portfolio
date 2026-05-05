@@ -1,0 +1,111 @@
+---
+title: Bayesian A/B Testing
+summary: A practical guide to using Bayes' rule, Beta priors, credible intervals, and posterior comparison for A/B tests.
+date: "2026-05-05"
+tags:
+  - Statistics
+  - Bayesian
+  - A/B Testing
+  - Experimentation
+featured: false
+difficulty: medium
+type: writing
+status: published
+---
+
+A/B testing is a disciplined way to ask whether a change improved an outcome. You split traffic between two experiences, measure the same success event in each group, and compare the evidence. In a product setting, the success event might be a signup, a checkout, a click, or any other binary conversion.
+
+The frequentist version often asks whether the observed difference would be surprising if there were no real difference. A Bayesian version asks a slightly different and often more practical question:
+
+> Given what we believed before the experiment and what we observed during the experiment, what do we believe now?
+
+That question is powered by Bayes' rule:
+
+$$
+P(H \mid D) = \frac{P(D \mid H)P(H)}{P(D)}
+$$
+
+Read left to right, the posterior belief about a hypothesis $H$ after seeing data $D$ is proportional to the likelihood of the data under that hypothesis times the prior belief in the hypothesis. The denominator $P(D)$ is the normalizing constant that makes the probabilities add up correctly.
+
+In an A/B test, the "hypothesis" is usually not one single claim like "B wins." It is a possible conversion rate. Variant A has an unknown conversion rate $\theta_A$, Variant B has an unknown conversion rate $\theta_B$, and the experiment helps update our uncertainty about both.
+
+## A Practical Bayesian A/B Workflow
+
+Start by defining the estimand. For a binary conversion test, each visitor either converts or does not convert, so the natural target is the conversion probability for each variant:
+
+$$
+\theta_A = P(\text{conversion} \mid A), \quad \theta_B = P(\text{conversion} \mid B)
+$$
+
+The data for each variant can be summarized as conversions $x$ out of visitors $n$. A binomial likelihood says that if the true conversion rate is $\theta$, then the probability of observing $x$ conversions in $n$ visitors is:
+
+$$
+P(x \mid \theta, n) = \binom{n}{x}\theta^x(1-\theta)^{n-x}
+$$
+
+Next choose a prior. For conversion rates, the Beta distribution is useful because it lives between $0$ and $1$ and is conjugate to the binomial likelihood. Conjugate means the posterior stays in the same family as the prior, which makes the update easy to compute and easy to explain.
+
+If the prior is:
+
+$$
+\theta \sim \text{Beta}(\alpha, \beta)
+$$
+
+and the experiment observes $x$ conversions in $n$ visitors, the posterior is:
+
+$$
+\theta \mid x, n \sim \text{Beta}(\alpha + x, \beta + n - x)
+$$
+
+This is the Beta-binomial update. It is also a nice mental model: conversions add to $\alpha$, non-conversions add to $\beta$. A prior of $\text{Beta}(3, 17)$ behaves like a modest starting belief around a $15\%$ conversion rate because its mean is:
+
+$$
+E[\theta] = \frac{\alpha}{\alpha+\beta} = \frac{3}{20} = 0.15
+$$
+
+Now imagine an experiment with these observations:
+
+| Variant | Conversions | Visitors | Posterior |
+| --- | ---: | ---: | --- |
+| A | 52 | 420 | $\text{Beta}(55, 385)$ |
+| B | 72 | 415 | $\text{Beta}(75, 360)$ |
+
+The posterior mean for each arm is still $\alpha / (\alpha + \beta)$ after the update:
+
+$$
+E[\theta_A \mid D_A] = \frac{55}{440} = 12.5\%
+$$
+
+$$
+E[\theta_B \mid D_B] = \frac{75}{435} \approx 17.2\%
+$$
+
+That puts Variant B about $4.7$ percentage points higher than Variant A. But a Bayesian analysis should not stop at the means. The whole posterior distribution matters because it tells us how much uncertainty remains.
+
+A credible interval gives a range of conversion rates that contains a chosen amount of posterior probability. A $95\%$ credible interval can be read directly as "given the model and data, there is a $95\%$ posterior probability that the true conversion rate is in this interval." That interpretation is one reason Bayesian intervals are often easier to communicate than confidence intervals.
+
+The most decision-shaped quantity is often:
+
+$$
+P(B > A \mid D)
+$$
+
+You can estimate this by drawing many samples from both posterior distributions and counting how often the sampled value for B is larger than the sampled value for A. In this example, that probability is about $97.6\%$. That does not mean Variant B is guaranteed to win forever. It means that under this model, with this prior and this evidence, most posterior comparisons favor B.
+
+<Callout title="Practical decision rule">
+Before the test starts, choose the minimum lift worth shipping and the posterior probability needed to act. Otherwise it is too easy to move the goalposts after seeing a friendly chart.
+</Callout>
+
+## Watching Evidence Become a Posterior
+
+The animation below uses the same numbers from the walkthrough. Run the update and watch the shared prior split into two posterior beliefs after the conversion evidence arrives.
+
+<BayesianABDemo />
+
+The important thing to notice is not just that B ends higher. Notice that both curves still have width. A Bayesian result is not a single verdict; it is a distribution of plausible conversion rates after combining prior information with observed evidence.
+
+## Conclusion
+
+Bayesian A/B testing is useful because it turns experiment results into decision-ready probability statements. You can say what you believed before the test, show how the evidence updated that belief, and compare variants in terms like posterior lift, credible intervals, and $P(B > A)$.
+
+That does not make Bayesian testing automatically better than every other approach. The prior has to be defensible, the experiment still needs clean randomization, and the success metric still needs to match the product decision. The real advantage is clarity: the method keeps uncertainty visible while making the decision question explicit.

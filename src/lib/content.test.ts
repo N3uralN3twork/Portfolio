@@ -97,8 +97,23 @@ describe("content contract", () => {
     expect(writing.map((entry) => entry.slug)).toContain(
       "bayesian-drift-detection",
     );
+    expect(writing.map((entry) => entry.slug)).toContain(
+      "bayesian-ab-testing",
+    );
     expect(work.map((entry) => entry.slug)).toContain(
       "streaming-feature-platform",
+    );
+
+    const bayesianPost = await getContentBySlug("writing", "bayesian-ab-testing");
+    expect(bayesianPost.meta.type).toBe("writing");
+    expect(bayesianPost.meta.difficulty).toBe("medium");
+    expect(bayesianPost.meta.tags).toEqual(
+      expect.arrayContaining([
+        "Statistics",
+        "Bayesian",
+        "A/B Testing",
+        "Experimentation",
+      ]),
     );
 
     const project = await getContentBySlug("work", "streaming-feature-platform");
@@ -125,5 +140,11 @@ describe("content contract", () => {
     );
     expect(index.find((item) => item.slug === "bayesian-drift-detection")?.text)
       .toMatch(/posterior/i);
+    expect(index.find((item) => item.slug === "bayesian-ab-testing")?.text)
+      .toMatch(/beta-binomial/i);
+    expect(index.find((item) => item.slug === "bayesian-ab-testing")?.text)
+      .toMatch(/credible interval/i);
+    expect(index.find((item) => item.slug === "bayesian-ab-testing")?.text)
+      .toMatch(/p b a/i);
   });
 });

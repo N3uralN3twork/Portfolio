@@ -6,6 +6,7 @@ import {
   LinkCard,
   ProjectMetric,
 } from "@/components/mdx/blocks";
+import { BayesianABDemo } from "@/components/mdx/bayesian-ab-demo";
 import { MdxPre } from "@/components/mdx/mdx-pre";
 import { parseMdxStyleString } from "@/lib/mdx-style";
 
@@ -39,6 +40,7 @@ export const mdxComponents: MDXComponents = {
   LabChart,
   LinkCard,
   ProjectMetric,
+  BayesianABDemo,
 };
 
 export function useMDXComponents(): MDXComponents {
