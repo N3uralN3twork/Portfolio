@@ -28,9 +28,9 @@ Take a look at these requirements I extracted from the original Word doc and see
 ## Project Requirements
 
 ### Prerequisites
-Generate a randomization schema for 100 people with a 1:1 T:C ratio.
+Generate a randomization schema for $100$ people with a $1:1$ T:C ratio.
 * Describe how to do this
-* $ [0,0,0…..1,1,1] \rarrow $  “shuffle it” --> Sampling without replacement
+* $ [0,0,0…..1,1,1]$ -->  “shuffle it” --> Sampling without replacement
 * `Rep(sample)` --> Don't do this
 * Use the `replicate()` function
 
@@ -38,8 +38,8 @@ Generate a randomization schema for 100 people with a 1:1 T:C ratio.
 The professor should be able to give your code and directions to any statistics student and they should be able to reproduce the same schema that you have, which represents the desired study design.
 The input to your programs should be the parameters of #sites, #subjects/site, Randomization ratio, stratification levels.
 
-1. Write code to create a reproducible completely randomized design schema for S subjects at T sites in blocks of B where randomization is N:D treatment:control
-    a. Example 1:  30 subjects at site one in blocks of 6 where randomization is 1:1 treatment:control
+1. Write code to create a reproducible completely randomized design schema for S subjects at T sites in blocks of B where randomization is $N:D$ treatment:control
+    a. Example 1:  30 subjects at site one in blocks of 6 where randomization is $1:1$ treatment:control
         i. I want the result to be a sequential list of 30 codes that look like AAA##(T or C)
         ii. AAA01T, AAA02T, AAA03C,…, AAA30T
     b. Example 2:  48 subjects at each of two sites in blocks of 12 where randomization is 3:1 treatment:control
@@ -87,27 +87,27 @@ The final result was me learning a lot about not only designing experiments with
 **INPUT:**
 * A list of site codes (character)
 * The number of subjects per site (integer)
-* The randomization ratio (>= 1)
-* Number of factors in your experiment (>= 0)
+* The randomization ratio ($>= 1$)
+* Number of factors in your experiment ($>= 0$)
 
 **OUTPUT:**
-* A sequential list of N codes inside a dataframe object
+* A sequential list of $N$ codes inside a dataframe object
 * An empty data vector for each factor
 
 **For each site do the following:**
-* Store site in dataframe N times each
-* Add numbers (1-K) to end of each site code in dataframe
-* Randomly assign (T/C) to end of each site code in dataframe
+* Store site in dataframe $N$ times each
+* Add numbers ($1-K$) to end of each site code in dataframe
+* Randomly assign ($T/C$) to end of each site code in dataframe
 
 **Assigning the numbers:**
 * Based on your row number for each site
-* If less than 10, assign a "0" between the code and the number
+* If less than $10$, assign a "0" between the code and the number
 * Otherwise, assign no space between the code and the number
 
 **Randomization Ratio:**
-* Number of Treatment subjects == (N/(N+D))*NSubjects:
+* Number of Treatment subjects == $(N/(N+D))$ * NSubjects:
 * Number of Control subjects == (NSubjects - TSubjects)
-* (1, 1/2) , (2, 2/3), (3, 3/4), (4, 4/5), etc. = (n, n/n+1)
+* $(1, 1/2) , (2, 2/3), (3, 3/4), (4, 4/5), etc. = (n, n/n+1)$
 
 **If a negative number is input, it will take the absolute value of the input**
 
