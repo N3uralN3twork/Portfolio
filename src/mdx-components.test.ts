@@ -114,4 +114,30 @@ describe("mdx component helpers", () => {
     expect(blocks).toContain('type = "info"');
     expect(blocks).toContain('"warning"');
   });
+
+  test("registers the lavaan SEM Motion demo for MDX lab entries", async () => {
+    const [registry, demo] = await Promise.all([
+      readFile(path.join(process.cwd(), "src", "mdx-components.tsx"), "utf8"),
+      readFile(
+        path.join(
+          process.cwd(),
+          "src",
+          "components",
+          "mdx",
+          "lavaan-sem-demo.tsx",
+        ),
+        "utf8",
+      ),
+    ]);
+
+    expect(registry).toContain("LavaanSemDemo");
+    expect(registry).toContain("@/components/mdx/lavaan-sem-demo");
+    expect(demo).toContain('"use client"');
+    expect(demo).toMatch(/from "motion\/react"/);
+    expect(demo).toContain("AnimatePresence");
+    expect(demo).toContain("useReducedMotion");
+    expect(demo).toContain("motion.path");
+    expect(demo).toContain("PoliticalDemocracy");
+    expect(demo).not.toMatch(/from "framer-motion"/);
+  });
 });

@@ -1,11 +1,16 @@
 import {
   ActivityIcon,
+  BracesIcon,
   GitBranchIcon,
   RadioTowerIcon,
   type LucideIcon,
 } from "lucide-react";
 
-export type LabDemoId = "latency-budget" | "pipeline-failure" | "model-serving";
+export type LabDemoId =
+  | "latency-budget"
+  | "pipeline-failure"
+  | "model-serving"
+  | "lavaan-sem";
 
 export type LabDemo = {
   id: LabDemoId;
@@ -51,5 +56,16 @@ export const labDemos: LabDemo[] = [
     relatedHref: "/work/retrieval-evaluation-lab",
     relatedLabel: "View evaluation lab",
     icon: RadioTowerIcon,
+  },
+  {
+    id: "lavaan-sem",
+    title: "lavaan SEM Workbench",
+    kicker: "Model syntax",
+    description:
+      "Translate lavaan syntax into a path diagram, then inspect how measurement loadings, structural paths, and fit diagnostics support an SEM workflow.",
+    tags: ["SEM", "lavaan", "R", "Fit indices"],
+    relatedHref: "/work/structural-equation-modeling-lavaan",
+    relatedLabel: "Open SEM lab",
+    icon: BracesIcon,
   },
 ];

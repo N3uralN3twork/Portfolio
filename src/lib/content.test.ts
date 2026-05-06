@@ -109,6 +109,9 @@ describe("content contract", () => {
     expect(work.map((entry) => entry.slug)).toContain(
       "streaming-feature-platform",
     );
+    expect(work.map((entry) => entry.slug)).toContain(
+      "structural-equation-modeling-lavaan",
+    );
 
     const bayesianPost = await getContentBySlug("writing", "bayesian-ab-testing");
     expect(bayesianPost.meta.type).toBe("writing");
@@ -141,6 +144,16 @@ describe("content contract", () => {
     const project = await getContentBySlug("work", "streaming-feature-platform");
     expect(project.meta.type).toBe("work");
     expect(project.body).toMatch(/feature freshness/i);
+
+    const lavaanLab = await getContentBySlug(
+      "work",
+      "structural-equation-modeling-lavaan",
+    );
+    expect(lavaanLab.meta.type).toBe("work");
+    expect(lavaanLab.meta.difficulty).toBe("hard");
+    expect(lavaanLab.body).toMatch(/PoliticalDemocracy/);
+    expect(lavaanLab.body).toMatch(/structural equation modeling/i);
+    expect(lavaanLab.body).toMatch(/model-implied/i);
   });
 
   test("builds a static search index from metadata and body text", async () => {
@@ -157,6 +170,11 @@ describe("content contract", () => {
           kind: "work",
           slug: "streaming-feature-platform",
           href: "/work/streaming-feature-platform",
+        }),
+        expect.objectContaining({
+          kind: "work",
+          slug: "structural-equation-modeling-lavaan",
+          href: "/work/structural-equation-modeling-lavaan",
         }),
       ]),
     );
@@ -176,5 +194,13 @@ describe("content contract", () => {
       .toMatch(/cache locality/i);
     expect(index.find((item) => item.slug === "low-latency-cpp-techniques")?.text)
       .toMatch(/p99/i);
+    expect(
+      index.find((item) => item.slug === "structural-equation-modeling-lavaan")
+        ?.text,
+    ).toMatch(/lavaan/i);
+    expect(
+      index.find((item) => item.slug === "structural-equation-modeling-lavaan")
+        ?.text,
+    ).toMatch(/model-implied/i);
   });
 });

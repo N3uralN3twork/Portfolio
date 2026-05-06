@@ -1,0 +1,148 @@
+---
+title: Structural equation modeling with lavaan
+summary: A practical SEM lab that turns lavaan syntax into a path diagram, fit diagnostics, and an interpretation.
+date: "2026-05-06"
+tags:
+  - Statistics
+  - R
+type: work
+status: prototype
+readingTime: 11 min read
+links:
+  - label: lavaan SEM tutorial
+    href: https://lavaan.ugent.be/tutorial/sem.html
+featured: false
+difficulty: hard
+cardImage: "/images/SEM-Simple-Model-Diagram.png"
+bannerImage: "/images/SEM-Simple-Model-Diagram.png"
+imageAlt: "lavaan package logo"
+---
+
+Structural equation modeling is useful when the model you want to test is bigger than one regression equation. A practical SEM workflow often has two jobs at once, at least in my prior experience:
+
+1. Define latent constructs from observational data/indicators.
+2. Estimate paths among the constructs you create via structures.
+
+The `lavaan` package in R allows users to create a compact way to write that model as syntax, fit it with `sem()`, and inspect the estimated loadings, paths, residual covariances, and fit diagnostics. The package documentation describes lavaan as an open-source latent variable modeling tool for path analysis, confirmatory factor analysis, structural equation modeling, and growth curve models.
+
+This lab uses lavaan's built-in `PoliticalDemocracy` example, originally associated with Bollen's work on SEM. The example has three latent constructs:
+
+| Latent construct | Meaning in the example | Observed indicators |
+| --- | --- | --- |
+| `ind60` | Industrialization in 1960 | `x1`, `x2`, `x3` |
+| `dem60` | Democracy in 1960 | `y1`, `y2`, `y3`, `y4` |
+| `dem65` | Democracy in 1965 | `y5`, `y6`, `y7`, `y8` |
+
+The analyst's question is not just whether one variable predicts another. It is whether the observed indicators support the latent constructs, whether the hypothesized structural paths are credible under the model, and whether the model-implied covariance structure is close enough to the sample covariance structure to take the specification seriously.
+
+<Callout title="Practical framing" type="warning">
+SEM is strongest when the diagram comes from theory before the fit output arrives. Fit indices can warn you that the model is strained, but they cannot rescue a weak construct definition.
+</Callout>
+
+## lavaan Syntax as a Model Contract
+
+In lavaan, the model is usually written as a quoted string. The most important operators are:
+
+| Operator | Read it as | Typical use |
+| --- | --- | --- |
+| `=~` | is measured by | Define a latent variable with observed indicators |
+| `~` | is regressed on | Specify a directional regression path |
+| `~~` | is correlated with | Estimate a variance or residual covariance |
+| `~1` | intercept | Estimate a mean/intercept term |
+
+The `PoliticalDemocracy` model can be written in a compact form:
+
+```r
+library(lavaan)
+
+democracy_model <- '
+  # measurement model
+  ind60 =~ x1 + x2 + x3
+  dem60 =~ y1 + y2 + y3 + y4
+  dem65 =~ y5 + y6 + y7 + y8
+
+  # structural regressions
+  dem60 ~ ind60
+  dem65 ~ ind60 + dem60
+
+  # residual correlations
+  y1 ~~ y5
+  y2 ~~ y4 + y6
+  y3 ~~ y7
+  y4 ~~ y8
+  y6 ~~ y8
+'
+
+fit <- sem(democracy_model, data = PoliticalDemocracy)
+summary(fit, standardized = TRUE, fit.measures = TRUE)
+```
+
+That syntax is already a graph. The `=~` lines create measurement arrows from latent variables to observed indicators. The `~` lines create structural arrows among latent variables. The `~~` lines add residual covariances, which are especially useful when two observed measures share method effects or repeated-measure structure not fully captured by the latent variables.
+
+## Measurement Before Structure
+
+The measurement model says which observed variables should move together because they are indicators of the same latent construct. In the `PoliticalDemocracy` example, `dem60` is not a single observed democracy score. It is a factor represented by `y1`, `y2`, `y3`, and `y4`.
+
+This matters because a structural path is only as interpretable as the measurement model beneath it. If the indicators for `dem60` do not behave like evidence for a shared construct, the path from `dem60` to `dem65` becomes harder to defend, even if the regression coefficient looks impressive.
+
+After fitting the model, lavaan can print standardized estimates. Standardized loadings are often a useful first read because they put indicators on a comparable scale. In the official example output, the completely standardized loadings for the `ind60` indicators are high, while the democracy indicators vary more. That does not automatically invalidate the model; it tells the analyst where measurement is stronger or weaker.
+
+## Watching Syntax Become a Diagram
+
+The animation below follows the same conceptual order an analyst should use: syntax, measurement, structure, then fit. Step through it and notice that the fitted model is not a separate artifact from the syntax. It is the syntax made estimable.
+
+<LavaanSemDemo />
+
+The key idea is that SEM estimates parameters so the model-implied covariance matrix, often written as `Sigma(theta)`, is close to the sample covariance matrix `S`. The exact fitting function depends on the estimator and data assumptions, but the practical diagnostic question is stable:
+
+$$
+\text{How much covariance in the observed data is left unexplained by the model we wrote down?}
+$$
+
+That is why fit statistics should be read as diagnostics. A non-significant chi-square test may be comforting, but it is not proof that the causal story is true. A good fit can still be theoretically wrong, and a strained fit can sometimes point to a specific measurement or residual structure that needs revision.
+
+## Interpreting the Fitted Model
+
+When you read a lavaan SEM summary, separate the output into a few analyst tasks:
+
+1. Check model status and estimator.
+2. Inspect global fit and degrees of freedom.
+3. Read standardized loadings for the measurement model.
+4. Read standardized paths for the structural model.
+5. Inspect residual covariances and modification pressure cautiously.
+
+For the `PoliticalDemocracy` example, lavaan reports maximum likelihood estimation, 75 observations, 31 model parameters, and a chi-square statistic of about 38.125 on 35 degrees of freedom in the basic standardized output. The structural paths in that example show a strong standardized path from `dem60` to `dem65`, a smaller path from `ind60` to `dem65`, and a moderate path from `ind60` to `dem60`.
+
+The practical interpretation is careful:
+
+- The measurement model defines what the latent constructs mean.
+- The structural paths estimate relationships among those constructs.
+- The residual covariances acknowledge repeated indicators or shared leftover variance.
+- The fit output evaluates the whole specification, not one coefficient in isolation.
+
+<LinkCard title="Related background" href="/writing/SEM-CFA">
+The older SEM-CFA note walks through structural equation modeling vocabulary and a UCLA-style lavaan workflow.
+</LinkCard>
+
+## Caveats Worth Keeping Visible
+
+SEM can look more confirmatory than it really is. A polished path diagram can make a tentative theory feel settled, so the workflow needs friction in the right places.
+
+Identification comes first. The model must have enough information in the observed covariance structure to estimate the free parameters. `lavaan`'s defaults help with common cases, such as fixing the first loading unless `std.lv = TRUE`, but defaults are not a substitute for understanding identification.
+
+Measurement quality comes before structural storytelling. If a latent construct is poorly measured, a downstream path coefficient can become a precise answer to a blurry question.
+
+Modification indices are **not** a treasure map. They can suggest where the model misfits, but adding paths because they improve fit can turn confirmatory analysis into post hoc curve fitting. If a residual covariance or cross-loading is added, it should have a domain reason.
+
+Finally, SEM is **not** causal magic. A directional arrow in the syntax encodes a hypothesized relationship. The data and fit diagnostics can pressure-test that hypothesis, but causal interpretation still depends on design, measurement timing, omitted variables, and theory.
+
+## Source Notes
+
+This lab is grounded in the official lavaan documentation and the package's core paper:
+
+- The lavaan project describes the package as an open-source latent variable modeling tool for path analysis, CFA, SEM, and growth curve models: [lavaan.org](https://lavaan.ugent.be/).
+- The operator meanings for `=~`, `~`, `~~`, and `~1` come from the lavaan model syntax tutorial: [Model syntax 1](https://lavaan.ugent.be/tutorial/syntax1.html).
+- The `PoliticalDemocracy` example, model structure, and selected standardized output values come from the official SEM tutorial: [A SEM example](https://lavaan.ugent.be/tutorial/sem.html).
+- The `sem()` fitting API is documented in the CRAN reference manual: [Fit Structural Equation Models](https://search.r-project.org/CRAN/refmans/lavaan/html/sem.html).
+- The formal lavaan citation is Rosseel, Y. (2012), "lavaan: An R Package for Structural Equation Modeling," *Journal of Statistical Software*, 48(2), 1-36: [JSS article](https://www.jstatsoft.org/article/view/v048i02).
+- Bollen, K. A. (2026). Elements of Structural Equation Models (SEMs). Cambridge: Cambridge University Press.

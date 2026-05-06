@@ -7,6 +7,7 @@ import {
   ProjectMetric,
 } from "@/components/mdx/blocks";
 import { BayesianABDemo } from "@/components/mdx/bayesian-ab-demo";
+import { LavaanSemDemo } from "@/components/mdx/lavaan-sem-demo";
 import { LowLatencyCppDemo } from "@/components/mdx/low-latency-cpp-demo";
 import { MdxPre } from "@/components/mdx/mdx-pre";
 import { RandomForestDemo } from "@/components/mdx/random-forest-demo";
@@ -44,6 +45,7 @@ export const mdxComponents: MDXComponents = {
   LinkCard,
   ProjectMetric,
   BayesianABDemo,
+  LavaanSemDemo,
   LowLatencyCppDemo,
   RandomForestDemo,
   RandomizationSchemaBuilder,

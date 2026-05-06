@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   AlertTriangleIcon,
   ArrowRightIcon,
+  BracesIcon,
   CheckCircle2Icon,
   CircleDotIcon,
   Clock3Icon,
@@ -23,12 +24,6 @@ import {
 } from "@/components/ui/card";
 import { labDemos, type LabDemo } from "@/lib/lab";
 import { cn } from "@/lib/utils";
-
-const demoTitleHints = [
-  "Latency Budget Simulator",
-  "Pipeline Failure Drill",
-  "Model Serving Tradeoff",
-] as const;
 
 type LatencyScenario = {
   id: "baseline" | "optimized" | "stress";
@@ -166,6 +161,7 @@ export function LabClient() {
 
 function LabDemoCard({ demo }: { demo: LabDemo }) {
   const Icon = demo.icon;
+  const demoIndex = labDemos.findIndex((item) => item.id === demo.id) + 1;
 
   return (
     <Card className="h-full">
@@ -176,8 +172,7 @@ function LabDemoCard({ demo }: { demo: LabDemo }) {
             {demo.kicker}
           </Badge>
           <span className="font-mono text-xs text-muted-foreground">
-            {demoTitleHints.indexOf(demo.title as (typeof demoTitleHints)[number]) + 1}
-            /3
+            {demoIndex}/{labDemos.length}
           </span>
         </div>
         <div className="space-y-2">
@@ -199,6 +194,7 @@ function LabDemoCard({ demo }: { demo: LabDemo }) {
         {demo.id === "latency-budget" ? <LatencyBudgetDemo /> : null}
         {demo.id === "pipeline-failure" ? <PipelineFailureDemo /> : null}
         {demo.id === "model-serving" ? <ModelServingDemo /> : null}
+        {demo.id === "lavaan-sem" ? <LavaanSemPreview /> : null}
       </CardContent>
 
       <CardFooter>
@@ -211,6 +207,47 @@ function LabDemoCard({ demo }: { demo: LabDemo }) {
         </Link>
       </CardFooter>
     </Card>
+  );
+}
+
+function LavaanSemPreview() {
+  const operators = [
+    { label: "=~", detail: "latent measurement" },
+    { label: "~", detail: "structural path" },
+    { label: "~~", detail: "residual covariance" },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border bg-background p-4">
+        <div className="flex items-start gap-3">
+          <div className="grid size-9 shrink-0 place-items-center rounded-lg border bg-muted/40">
+            <BracesIcon className="size-4 text-muted-foreground" aria-hidden />
+          </div>
+          <div className="space-y-1">
+            <p className="font-medium">PoliticalDemocracy SEM</p>
+            <p className="text-sm leading-6 text-muted-foreground">
+              Build `ind60`, `dem60`, and `dem65` from indicators before
+              reading the structural paths.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-2">
+          {operators.map((operator) => (
+            <div
+              key={operator.label}
+              className="flex items-center justify-between rounded-lg bg-muted/45 px-3 py-2 text-sm"
+            >
+              <span className="font-mono">{operator.label}</span>
+              <span className="text-xs text-muted-foreground">
+                {operator.detail}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 

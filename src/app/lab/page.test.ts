@@ -16,9 +16,9 @@ describe("lab route", () => {
     expect(page).toContain("LabClient");
     expect(page).not.toContain('"use client"');
     expect(client).toContain('"use client"');
-    expect(client).toContain("Latency Budget Simulator");
-    expect(client).toContain("Pipeline Failure Drill");
-    expect(client).toContain("Model Serving Tradeoff");
+    expect(client).toContain("labDemos.map");
+    expect(client).toContain("{demoIndex}/{labDemos.length}");
+    expect(client).toContain('demo.id === "lavaan-sem"');
   });
 
   test("adds Lab as a top-level navigation item", async () => {
