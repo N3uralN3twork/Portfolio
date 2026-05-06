@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { mdxComponents } from "@/mdx-components";
 import { normalizeMdxStyleAttributes } from "@/lib/mdx-style";
+import { rehypePrettyCodeOptions } from "@/lib/rehype-pretty-code-options";
 
 export async function renderMdx(source: string) {
   const result = await compileMDX({
@@ -17,7 +18,7 @@ export async function renderMdx(source: string) {
         remarkPlugins: [remarkGfm, remarkMath],
         rehypePlugins: [
           rehypeSlug,
-          [rehypePrettyCode, { theme: "github-dark-dimmed" }],
+          [rehypePrettyCode, rehypePrettyCodeOptions],
           rehypeKatex,
         ],
       },

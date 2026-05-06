@@ -3,13 +3,22 @@
 import * as React from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { extractCopyableCode } from "@/lib/mdx-code-copy";
+
+type MdxPreProps = React.ComponentPropsWithoutRef<"pre"> & {
+  "data-raw-code"?: string;
+};
 
 export function MdxPre({
   children,
+  "data-raw-code": rawCode,
   ...props
-}: React.ComponentPropsWithoutRef<"pre">) {
+}: MdxPreProps) {
   const [copied, setCopied] = React.useState(false);
-  const code = React.useMemo(() => extractText(children), [children]);
+  const code = React.useMemo(
+    () => extractCopyableCode(children, rawCode),
+    [children, rawCode],
+  );
 
   async function copyCode() {
     if (!code) return;
@@ -45,20 +54,4 @@ export function MdxPre({
       <pre {...props}>{children}</pre>
     </div>
   );
-}
-
-function extractText(node: React.ReactNode): string {
-  if (typeof node === "string" || typeof node === "number") {
-    return String(node);
-  }
-
-  if (Array.isArray(node)) {
-    return node.map(extractText).join("");
-  }
-
-  if (React.isValidElement<{ children?: React.ReactNode }>(node)) {
-    return extractText(node.props.children);
-  }
-
-  return "";
 }
