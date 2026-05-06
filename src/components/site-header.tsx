@@ -9,6 +9,7 @@ const navItems = [
   { label: "Work", href: "/work" },
   { label: "Writing", href: "/writing" },
   { label: "Animations", href: "/animations" },
+  { label: "Lab", href: "/lab" },
 ];
 
 export function SiteHeader({ searchIndex }: { searchIndex: SearchIndexItem[] }) {

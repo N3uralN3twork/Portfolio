@@ -9,7 +9,7 @@ export const profile = {
   links: [
     { label: "GitHub", href: "https://github.com/N3uralN3twork" },
     { label: "LinkedIn", href: "https://www.linkedin.com/in/matthiasquinn/" },
-    { label: "Research notes", href: "/writing" },
+    { label: "Showcase", href: "/writing" },
   ],
   focus: [
     "Python data systems",
