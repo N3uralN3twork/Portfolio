@@ -1,7 +1,7 @@
 import type { StaticImageData } from "next/image";
 import awsLogo from "../../public/images/AWS-Logo.jpg";
 import gitLogo from "../../public/images/GitS.jpg";
-import pythonLogo from "../../public/images/Python-Logo.png";
+import pythonLogo from "../../public/images/Python-Logo-Modern.png";
 import rLogo from "../../public/images/R-Logo.png";
 import sqlLogo from "../../public/images/SQL-Logo.png";
 import xgboostLogo from "../../public/images/XGBoost_logo.png";

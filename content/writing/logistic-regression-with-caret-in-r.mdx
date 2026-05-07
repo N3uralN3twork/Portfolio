@@ -1,0 +1,391 @@
+---
+title: Logistic Regression with caret in R
+author: Matthias Quinn
+summary: A rewritten lab-led tutorial on logistic regression, odds ratios, model diagnostics, and fitting a binomial GLM with caret in R.
+cardImg: /images/CarrotImage.jpg
+bannerImg: /images/CarrotImage.jpg
+imageAlt: Stylized carrot logo for caret in R
+date: 2019-10-26
+tags:
+  - R
+  - Statistics
+  - Machine Learning
+difficulty: medium
+type: writing
+status: published
+readingTime: 20 min read
+---
+
+# Logistic Regression with caret in R
+
+The original version of this post was a compact notebook: define logistic regression, fit a `caret` model, inspect odds ratios, and run a few diagnostics. This rewrite keeps the same spirit and the same two examples, but it makes the story a little more deliberate.
+
+Logistic regression is easy to underestimate because the model is linear on the inside. The useful trick is that the linear score is not the final prediction. The model first computes a log-odds score, then passes that score through the logistic function to produce a probability between $0$ and $1$.
+
+The lab below is the intuition. Move the coefficients and threshold, then watch the decision boundary, probability field, and mistakes update.
+
+<LogisticRegressionDemo />
+
+## The Model
+
+For a binary outcome, logistic regression models the log-odds of the event:
+
+$$
+\log\left(\frac{p}{1-p}\right) = \beta_0 + \beta_1x_1 + \cdots + \beta_px_p
+$$
+
+The right side is the familiar linear predictor. The left side is the logit of the probability. To get back to a probability, use the inverse logit:
+
+$$
+p = \frac{1}{1 + e^{-z}}
+$$
+
+where
+
+$$
+z = \beta_0 + \beta_1x_1 + \cdots + \beta_px_p
+$$
+
+That is why the coefficients need a little care. A one-unit increase in a predictor changes the log-odds by its coefficient, not the probability by a fixed amount. Exponentiating a coefficient gives an odds ratio:
+
+$$
+\operatorname{OR}_j = e^{\beta_j}
+$$
+
+An odds ratio above $1$ increases the odds of the modeled class. An odds ratio below $1$ decreases those odds. The probability change still depends on where the observation already sits on the sigmoid curve.
+
+## Data and Setup
+
+The original project used the `GermanCredit` data included with `caret`. The task is to classify consumers as `Good` or `Bad` credit risks. The refreshed run below uses the same seed and the same five predictors:
+
+- `Age`
+- `ForeignWorker`
+- `Property.RealEstate`
+- `Housing.Own`
+- `CreditHistory.Critical`
+
+```r
+library(caret)
+library(pscl)
+library(ResourceSelection)
+
+data("GermanCredit")
+
+set.seed(12345789)
+inTrain <- createDataPartition(
+  y = GermanCredit$Class,
+  p = 0.6,
+  list = FALSE
+)
+
+training <- GermanCredit[inTrain, ]
+testing  <- GermanCredit[-inTrain, ]
+```
+
+The fresh run created $600$ training rows and $400$ test rows.
+
+```text
+train  test
+  600   400
+```
+
+`caret::createDataPartition()` is useful here because it preserves the class distribution better than a completely naive random split.
+
+## Fit a Logistic Regression with caret
+
+In `caret`, `train()` is the main modeling interface. For logistic regression, use `method = "glm"` and pass `family = "binomial"` through to `stats::glm()`.
+
+```r
+lmodel <- train(
+  Class ~ Age +
+    ForeignWorker +
+    Property.RealEstate +
+    Housing.Own +
+    CreditHistory.Critical,
+  data = training,
+  method = "glm",
+  family = "binomial"
+)
+```
+
+This gives a `train` object, but the underlying fitted GLM is still available:
+
+```r
+lmodel$finalModel
+```
+
+For this binary outcome, the factor levels are:
+
+```text
+[1] "Bad"  "Good"
+```
+
+Because `Good` is the second level, this fitted model is easiest to read as modeling the probability of `Good` credit.
+
+## Interpret the Odds Ratios
+
+The coefficient table is on the log-odds scale. Exponentiating the coefficients gives odds ratios:
+
+```r
+round(exp(coef(lmodel$finalModel)), 4)
+```
+
+```text
+           (Intercept)                    Age          ForeignWorker
+                3.0517                 1.0095                 0.2494
+   Property.RealEstate            Housing.Own CreditHistory.Critical
+                1.7753                 1.7580                 2.2364
+```
+
+Read these multiplicatively:
+
+- `Age` has an odds ratio of $1.0095$. A one-year increase is associated with about a 0.95% increase in the odds of `Good` credit, holding the other predictors fixed.
+- `Property.RealEstate` has an odds ratio of $1.7753$. Having real estate property is associated with higher odds of `Good` credit.
+- `Housing.Own` has an odds ratio of $1.7580$.
+- `CreditHistory.Critical` has an odds ratio of $2.2364$.
+- `ForeignWorker` has an odds ratio of $0.2494$, but its interval below is wide, so I would be cautious about treating it as stable evidence from this model.
+
+To pair odds ratios with confidence intervals and p-values, fit the equivalent `glm()` directly:
+
+```r
+logistic <- glm(
+  Class ~ Age +
+    ForeignWorker +
+    Property.RealEstate +
+    Housing.Own +
+    CreditHistory.Critical,
+  data = training,
+  family = "binomial"
+)
+
+round(
+  cbind(
+    OR = exp(coef(logistic)),
+    exp(confint.default(logistic)),
+    pValue = summary(logistic)$coefficients[, 4]
+  ),
+  4
+)
+```
+
+```text
+                           OR  2.5 %  97.5 % pValue
+(Intercept)            3.0517 0.6199 15.0219 0.1701
+Age                    1.0095 0.9934  1.0259 0.2502
+ForeignWorker          0.2494 0.0570  1.0912 0.0652
+Property.RealEstate    1.7753 1.1469  2.7479 0.0100
+Housing.Own            1.7580 1.1879  2.6019 0.0048
+CreditHistory.Critical 2.2364 1.4356  3.4838 0.0004
+```
+
+The quick rule: if an odds-ratio interval contains 1, the direction is not especially convincing at the usual $95\%$ level. In this run, `Property.RealEstate`, `Housing.Own`, and `CreditHistory.Critical` have intervals fully above $1$.
+
+## Predict Probabilities
+
+Use `predict()` with `type = "prob"` to get class probabilities from the `caret` model:
+
+```r
+predictions <- predict(lmodel, newdata = testing, type = "prob")
+head(predictions)
+```
+
+```text
+      Bad   Good
+2  0.2548 0.7452
+6  0.4855 0.5145
+10 0.2041 0.7959
+15 0.5020 0.4980
+17 0.1683 0.8317
+18 0.3710 0.6290
+```
+
+The fourth row is a nice reminder that a probability is not a class until a threshold is chosen. With a $0.50$ threshold, row $15$ is just barely classified as `Bad` because its `Good` probability is $0.4980$. A different threshold would change that label.
+
+## Model Diagnostics
+
+Logistic regression does not have one magic diagnostic. I usually want at least four views:
+
+- Does the full model improve over a smaller model?
+- Are the estimated effects meaningful and stable?
+- Are predicted probabilities calibrated well enough?
+- Does the chosen threshold create useful classification behavior?
+
+### Likelihood-Ratio Test
+
+The likelihood-ratio test compares nested models. Here the reduced model uses only `Age` and `ForeignWorker`, while the full model adds property, housing, and credit-history variables.
+
+```r
+mod_fit_two <- glm(
+  Class ~ Age + ForeignWorker,
+  data = training,
+  family = binomial(link = "logit")
+)
+
+anova(mod_fit_two, logistic, test = "Chisq")
+```
+
+```text
+Analysis of Deviance Table
+
+Model 1: Class ~ Age + ForeignWorker
+Model 2: Class ~ Age + ForeignWorker + Property.RealEstate + Housing.Own +
+    CreditHistory.Critical
+  Resid. Df Resid. Dev Df Deviance  Pr(>Chi)
+1       597     723.12
+2       594     691.14  3   31.976 5.294e-07 ***
+```
+
+The small p-value suggests the full model fits better than the reduced model. That does not mean it is a great classifier. It means the additional variables improve the likelihood relative to the smaller model.
+
+### Pseudo R2
+
+Ordinary least squares has an $R^2$ with a familiar variance-explained interpretation. Logistic regression does not use that same objective, so pseudo-$R^2$ measures compare likelihoods instead.
+
+```r
+pR2(logistic)
+```
+
+```text
+      llh   llhNull        G2  McFadden      r2ML      r2CU
+-345.5711 -366.5186   41.8950    0.0572    0.0674    0.0956
+```
+
+McFadden's pseudo-$R^2$ is $0.0572$ here. I would read that as: the predictors add signal, but this is still a weak model if the goal is high-confidence prediction.
+
+### Hosmer-Lemeshow Goodness-of-Fit
+
+The Hosmer-Lemeshow test groups observations by predicted probability and compares observed versus expected event counts.
+
+```r
+hoslem.test(
+  as.integer(training$Class == "Good"),
+  fitted(logistic),
+  g = 10
+)
+```
+
+```text
+Hosmer and Lemeshow goodness of fit (GOF) test
+
+X-squared = 7.3973, df = 8, p-value = 0.4944
+```
+
+Because the p-value is not small, this test does not flag obvious lack of fit. That is not the same as proving the model is good. It is one calibration check, and it can be sensitive to sample size and grouping choices.
+
+### Variable Importance
+
+For GLMs, `caret::varImp()` uses the absolute value of the model statistic for each term and scales the result.
+
+```r
+varImp(lmodel)
+```
+
+```text
+glm variable importance
+
+                       Overall
+CreditHistory.Critical  100.00
+Housing.Own              69.35
+Property.RealEstate      59.15
+ForeignWorker            28.81
+Age                       0.00
+```
+
+In this fitted model, `CreditHistory.Critical` is the strongest term by this importance measure.
+
+### Confusion Matrix
+
+Finally, convert probabilities to class labels and compare them to the held-out test set:
+
+```r
+preds <- predict(lmodel, newdata = testing)
+confusionMatrix(data = preds, reference = testing$Class)
+```
+
+```text
+          Reference
+Prediction Bad Good
+      Bad   12   15
+      Good 108  265
+
+Accuracy : 0.6925
+95% CI   : (0.6447, 0.7374)
+Kappa    : 0.0596
+
+Sensitivity : 0.1000
+Specificity : 0.9464
+Balanced Accuracy : 0.5232
+
+'Positive' Class : Bad
+```
+
+This is where the model's weakness becomes obvious. Accuracy is $0.6925$, but the no-information rate is $0.7$ because most examples are `Good`. The model predicts `Good` too often and catches only $12$ of $120$ `Bad` cases. Its sensitivity for the `Bad` class is $0.10$.
+
+That matters. If the business cost of missing bad credit risks is high, the default threshold is probably not acceptable. The next practical step would be to tune the threshold, inspect ROC and precision-recall tradeoffs, or use class weights/resampling to better align the model with the decision cost.
+
+## What I Would Change Today
+
+The original notebook was written as a quick caret exercise, so the small predictor set made sense. If I were turning this into a production modeling workflow today, I would add:
+
+- Cross-validation through `trainControl()` instead of relying on one train/test split.
+- Threshold tuning based on the cost of false negatives versus false positives.
+- Calibration plots to check whether predicted probabilities behave like probabilities.
+- More feature engineering and a comparison model, such as penalized logistic regression or a tree-based baseline.
+- A clear definition of which class is "positive" before reporting sensitivity and specificity.
+
+The last point is easy to miss. `caret::confusionMatrix()` treats the first factor level as positive by default for two-class problems. In this data, that means `Bad` is the positive class.
+
+## Appendix: Probit Regression
+
+The original post ended with a probit example using admissions data with `admit`, `gre`, `gpa`, and `rank`. The local `data.csv` file supplied with the original project has 400 rows and the same four columns.
+
+```r
+mydata <- read.csv("data.csv")
+mydata$rank <- factor(mydata$rank)
+
+myprobit <- glm(
+  admit ~ gre + gpa + rank,
+  family = binomial(link = "probit"),
+  data = mydata
+)
+
+summary(myprobit)
+```
+
+Fresh output from the local file:
+
+```text
+             Estimate Std. Error   z value Pr(>|z|)
+(Intercept) -2.386836   0.673946 -3.541583 0.000398
+gre          0.001376   0.000650  2.116184 0.034329
+gpa          0.477730   0.197197  2.422605 0.015410
+rank2       -0.415399   0.194977 -2.130508 0.033130
+rank3       -0.812138   0.208358 -3.897808 0.000097
+rank4       -0.935899   0.245272 -3.815762 0.000136
+```
+
+```text
+Null deviance:     499.9765
+Residual deviance: 458.4132
+AIC:               470.4132
+```
+
+The probit model still estimates $E(Y \mid X) = P(Y = 1 \mid X)$, but it uses the standard normal cumulative distribution function as the inverse link rather than the logistic sigmoid. The signs tell the same story as a comparable logit model: higher `gre` and `gpa` increase the admission index, while ranks $2$, $3$, and $4$ decrease it relative to rank $1$.
+
+I would keep this as an appendix rather than the center of the article because the main learning goal is logistic regression with `caret`. Probit is useful as a contrast: same binary-response GLM framework, different link function.
+
+## Sources
+
+- [Original Quarto post: Logistic Regression with caret](https://n3uraln3twork.github.io/posts/logistic-regress-caret/logregcaret.html)
+- [The caret package: model training and tuning](https://topepo.github.io/caret/model-training-and-tuning.html)
+- [The caret package home](https://topepo.github.io/caret/)
+- [caret `GermanCredit` documentation](https://www.rdocumentation.org/packages/caret/topics/GermanCredit)
+- [R `glm()` documentation](https://stat.ethz.ch/R-manual/R-devel/library/stats/html/glm.html)
+- [R family/link documentation for `binomial(link = "logit")` and `binomial(link = "probit")`](https://stat.ethz.ch/R-manual/R-patched/library/stats/html/family.html)
+- [caret `confusionMatrix()` documentation](https://rdrr.io/cran/caret/man/confusionMatrix.html)
+- [caret `varImp()` documentation](https://rdrr.io/cran/caret/man/varImp.html)
+- [`pscl::pR2()` documentation](https://www.rdocumentation.org/packages/pscl/topics/pR2)
+- [`ResourceSelection::hoslem.test()` documentation](https://www.rdocumentation.org/packages/ResourceSelection/topics/hoslem.test)
+- [UCLA OARC logistic regression example](https://stats.oarc.ucla.edu/r/dae/logit-regression/)
+- [UCLA OARC probit regression example](https://stats.oarc.ucla.edu/r/dae/probit-regression/)
+- [Motion for React documentation](https://motion.dev/docs/react)

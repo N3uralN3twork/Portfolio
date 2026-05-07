@@ -1,0 +1,349 @@
+---
+author: Matthias Quinn
+title: Mapping Japan with Leaflet in R
+summary: A refreshed version of my original Quarto note on building a Japan prefecture choropleth with Leaflet in R.
+cardImg: /images/LeafletLogo.png
+bannerImg: /images/LeafletLogo.png
+imageAlt: Made with Leaflet in R
+date: 2026-05-07
+tags:
+  - R
+  - Leaflet
+  - Maps
+  - Data Visualization
+difficulty: medium
+type: writing
+status: published
+---
+
+# Mapping Japan with Leaflet in R
+
+<div className="not-prose my-8 grid gap-4 sm:grid-cols-2">
+  <div className="rounded-lg border bg-card p-5">
+    <p className="text-sm font-semibold uppercase tracking-normal text-muted-foreground">Goal</p>
+    <p className="mt-2 text-base leading-7">Learn how to create an interactive choropleth map using Leaflet.</p>
+  </div>
+  <div className="rounded-lg border bg-card p-5">
+    <p className="text-sm font-semibold uppercase tracking-normal text-muted-foreground">Result</p>
+    <p className="mt-2 text-base leading-7">A reactive map, made with Leaflet, that displays Japan's population distribution and other statistics in a presentable format.</p>
+  </div>
+</div>
+
+The main purpose of the original project was simple: I wanted to remember how to use Leaflet in R. I had started something similar about two years earlier and could not figure out, for the life of me, how to create an interactive choropleth map.
+
+For some background, I had made static maps before with `ggplot2`, but I wanted to learn something new. That is when I stumbled into Leaflet. In all honesty, the most difficult piece was finding the data needed to draw the borders of a given area.
+
+If only I knew that a couple of years earlier...
+
+## Original Interactive Map
+
+The original Quarto-rendered post is embedded below. If the embed does not load in your browser, the direct link underneath opens the original page.
+
+<div className="not-prose my-8 overflow-hidden rounded-lg border bg-muted">
+  <iframe
+    title="Original Japanese population Leaflet map"
+    src="https://n3uraln3twork.github.io/posts/japan-population/japanMaps.html"
+    className="h-[720px] w-full bg-background"
+    loading="lazy"
+  />
+</div>
+
+[Open the original Quarto post](https://n3uraln3twork.github.io/posts/japan-population/japanMaps.html)
+
+## Setup
+
+The original notebook loaded a small set of data-wrangling and spatial packages:
+
+```r
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+
+library(dplyr)
+library(leaflet)
+library(sp)
+library(stringr)
+```
+
+At the time, the post used `sp` and `rgdal`-style spatial objects. That was normal for a lot of older R mapping work, but the R spatial ecosystem has moved. If I were writing the tutorial from scratch today, I would reach first for `sf` because it represents spatial features as data frames with a geometry column and works naturally with `dplyr`.
+
+```r
+library(dplyr)
+library(leaflet)
+library(sf)
+library(stringr)
+```
+
+## Read In The Population Data
+
+The population dataset in the original post came from Japan's Bureau of Statistics and was stored as JSON in a GitHub project repo.
+
+```r
+dfJPop <- jsonlite::fromJSON(
+  "https://raw.githubusercontent.com/N3uralN3twork/R-Projects/master/Map%20Making/Japan/JapanPop.json"
+) |>
+  as.data.frame()
+```
+
+The file contained prefecture-level fields for 2010, 2015, and 2019 population values, including total, male, and female population counts. The original post described the source as containing data from 2005 and sometimes up to 2020 depending on what had been collected. The important point for this map is that the tabular data has a shared `id` field that can be joined to the prefecture boundary data.
+
+For a current version of this analysis, I would treat the 2019 file as a teaching dataset and then add a short data-note explaining that Japan's official population estimates and census releases have moved forward since then. The 2020 census reported that Japan's total population was 126.227 million as of October 1, 2020, down 868 thousand people, or 0.7%, from 2015. 
+
+Tokyo-to was the largest prefecture at 14.065 million, and the Tokyo metropolitan area accounted for about 29.3% of Japan's population.
+
+## Read In Japan's GeoJSON Data
+
+The original post used GeoJSON data for Japan's prefecture boundaries:
+
+```r
+japanGEO <- rgdal::readOGR(
+  dsn = "https://raw.githubusercontent.com/N3uralN3twork/R-Projects/master/Map%20Making/Japan/japanGeoData.geojson"
+)
+```
+
+That returned a `SpatialPolygonsDataFrame` with 47 features and three fields:
+
+```r
+names(japanGEO)
+# [1] "nam"    "nam_ja" "id"
+
+class(japanGEO)
+# [1] "SpatialPolygonsDataFrame"
+# attr(,"package")
+# [1] "sp"
+```
+
+GeoJSON is basically JSON for geographic features. Instead of storing only regular key-value data, it stores geometry: points, lines, polygons, and their coordinate arrays. For a prefecture map, each feature is a polygon or multipolygon describing the shape of one prefecture.
+
+Today I would read the same file with `sf::read_sf()`:
+
+```r
+japanGEO <- sf::read_sf(
+  "https://raw.githubusercontent.com/N3uralN3twork/R-Projects/master/Map%20Making/Japan/japanGeoData.geojson"
+)
+
+class(japanGEO)
+names(japanGEO)
+```
+
+The reason is not just aesthetics. The `rgdal`, `rgeos`, and `maptools` packages were retired as part of the R-spatial transition, with their roles taken over by newer packages such as `sf`, `stars`, and `terra`. That makes `sf::read_sf()` the better teaching path for new spatial R work.
+
+Another modern option is to fetch administrative boundaries directly with `geodata::gadm()`:
+
+```r
+library(geodata)
+library(sf)
+
+japan_boundaries <- geodata::gadm(
+  country = "JPN",
+  level = 1,
+  path = tempdir()
+) |>
+  sf::st_as_sf()
+```
+
+That gives you first-level administrative boundaries for Japan. The tradeoff is that you still need to inspect the prefecture names and keys before joining external population data.
+
+## Create A Popup
+
+The first goal was to create an informative popup for each prefecture. The original popup included the prefecture name, kanji, 2019 total population, four-year population change, and male-to-female ratio:
+
+```r
+dfJPop <- dfJPop |>
+  mutate(
+    popup = str_c(
+      "<strong>", Prefecture, "</strong>",
+      "<br/>",
+      "Kanji: ", Kanji,
+      "<br/>",
+      "Population: ", TotalPop2019,
+      "<br/>",
+      "4Y Change: ", TotalPop2019 - TotalPop2015,
+      "<br/>",
+      "M:F Ratio: ", round(TotalPopMale2019 / TotalPopFemale2019, digits = 3)
+    )
+  )
+```
+
+This is a good small example of why interactive maps are useful. A static choropleth can show the broad population pattern, but a popup lets the reader inspect the exact local values without cluttering the map with labels.
+
+If I were polishing the popup today, I would format the counts with commas:
+
+```r
+dfJPop <- dfJPop |>
+  mutate(
+    popup = str_c(
+      "<strong>", Prefecture, "</strong>",
+      "<br/>Kanji: ", Kanji,
+      "<br/>Population: ", format(TotalPop2019, big.mark = ","),
+      "<br/>4Y Change: ", format(TotalPop2019 - TotalPop2015, big.mark = ","),
+      "<br/>M:F Ratio: ", round(TotalPopMale2019 / TotalPopFemale2019, 3)
+    )
+  )
+```
+
+## Join The Boundary And Population Data
+
+At this point, the notebook has two objects:
+
+1. A borders dataset, from GeoJSON.
+2. A population dataset, from the JSON table.
+
+They need to be joined before the population values can drive the map colors.
+
+```r
+names(dfJPop)
+#  [1] "id"                 "Kanji"              "Prefecture"
+#  [4] "TotalPop2010"       "TotalPop2015"       "TotalPop2019"
+#  [7] "TotalPopMale2010"   "TotalPopMale2015"   "TotalPopMale2019"
+# [10] "TotalPopFemale2010" "TotalPopFemale2015" "TotalPopFemale2019"
+# [13] "popup"
+
+names(japanGEO)
+# [1] "nam"    "nam_ja" "id"
+```
+
+The original version used `merge()`:
+
+```r
+dfJapan <- merge(japanGEO, dfJPop, by = "id")
+```
+
+With `sf`, I would usually write the same step with `left_join()` so the spatial object stays in the same tidyverse flow:
+
+```r
+dfJapan <- japanGEO |>
+  left_join(dfJPop, by = "id")
+```
+
+The key thing to check is that the join still returns 47 prefecture rows. If the join returns missing values or duplicate rows, the map may render but silently tell the wrong story.
+
+```r
+nrow(dfJapan)
+sum(is.na(dfJapan$TotalPop2019))
+```
+
+## Create Japan's Population Map
+
+The original map used Leaflet's R interface, which is a wrapper around the JavaScript Leaflet library. The palette mapped `log10(TotalPop2019)` to color so that Tokyo and other large prefectures did not completely dominate the visual scale.
+
+```r
+pal <- colorNumeric(
+  "RdYlBu",
+  domain = log10(dfJapan$TotalPop2019),
+  reverse = TRUE
+)
+
+leaflet(dfJapan) |>
+  addTiles() |>
+  addPolygons(
+    fillColor = ~pal(log10(TotalPop2019)),
+    weight = 2,
+    opacity = 1,
+    color = "white",
+    dashArray = "3",
+    fillOpacity = 1,
+    popup = ~popup
+  ) |>
+  addLegend(
+    pal = pal,
+    values = ~log10(TotalPop2019),
+    opacity = 1.0,
+    labFormat = labelFormat(transform = function(x) round(10^x)),
+    title = "2019 Tot. Pop. (Log10)"
+  )
+```
+
+There are a couple of choices hiding inside that short block:
+
+- `addTiles()` adds the basemap.
+- `addPolygons()` draws the prefecture shapes.
+- `colorNumeric()` creates a continuous color function.
+- `popup = ~popup` connects the HTML popup string to each prefecture.
+- `addLegend()` uses the same palette and values so the color scale is interpretable.
+
+For exploratory work, `colorNumeric()` is fine because it preserves the continuous scale. For a publication-style choropleth, I would consider `colorBin()` instead. Bins are sometimes easier for readers because each color corresponds to an explicit interval.
+
+```r
+bins <- c(0, 1e6, 2e6, 4e6, 8e6, 16e6)
+pal <- colorBin("YlOrRd", domain = dfJapan$TotalPop2019, bins = bins)
+
+leaflet(dfJapan) |>
+  addTiles() |>
+  addPolygons(
+    fillColor = ~pal(TotalPop2019),
+    weight = 1,
+    color = "white",
+    fillOpacity = 0.8,
+    popup = ~popup,
+    highlightOptions = highlightOptions(
+      weight = 3,
+      color = "#444444",
+      bringToFront = TRUE
+    )
+  ) |>
+  addLegend(
+    pal = pal,
+    values = ~TotalPop2019,
+    opacity = 0.8,
+    title = "2019 total population"
+  )
+```
+
+The bin choice should be explained in the article or caption. A choropleth is not just code output; it is a visual argument about what differences matter.
+
+## What I Would Update Now
+
+The biggest technical update is replacing `rgdal::readOGR()` with `sf::read_sf()`. The original code is still useful as a snapshot of how I learned the workflow, but I would not teach `rgdal` as the default path now. The R-spatial project announced the retirement of `rgdal`, `rgeos`, and `maptools`, and current examples increasingly center on `sf` and `terra`.
+
+The second update is the population context. Japan's population decline is not just a map-making excuse; it is the demographic story behind the visualization. 
+
+The 2020 census showed national decline from 2015 to 2020, while also showing strong concentration around Tokyo. 
+
+The Statistics Bureau's population estimates are now based on the 2020 census base population, and its annual prefecture estimates are published for October 1. The Statistical Handbook of Japan 2025 lists Japan's 2024 population at 123.802 million, with total area of 377,975 square kilometers and population density of 333 people per square kilometer.
+
+The third update is reproducibility. If I wanted this to be a durable tutorial, I would include:
+
+- a note on the exact population table vintage;
+- a check that the boundary data has 47 prefectures;
+- a check that all population rows join to geometry;
+- a note on whether the map shows total population or density;
+- a short explanation of why the color scale is logged or binned.
+
+That is the difference between a map that works and a map that someone else can trust.
+
+## Sources
+
+<LinkCard title="Original Quarto post" href="https://n3uraln3twork.github.io/posts/japan-population/japanMaps.html">
+The original rendered version of this Leaflet mapping note.
+</LinkCard>
+
+<LinkCard title="Leaflet for R documentation" href="https://rstudio.github.io/leaflet/">
+Official documentation for using the R interface to Leaflet maps.
+</LinkCard>
+
+<LinkCard title="Leaflet choropleth guide" href="https://rstudio.github.io/leaflet/articles/choropleths.html">
+Official Leaflet for R article showing polygon layers, palettes, labels, highlighting, and legends.
+</LinkCard>
+
+<LinkCard title="R-spatial evolution and rgdal retirement" href="https://r-spatial.org/r/2022/04/12/evolution.html">
+R-spatial project note explaining the retirement path for rgdal, rgeos, and maptools.
+</LinkCard>
+
+<LinkCard title="geodata::gadm documentation" href="https://search.r-project.org/CRAN/refmans/geodata/html/gadm.html">
+CRAN reference for fetching administrative boundaries by country and level.
+</LinkCard>
+
+<LinkCard title="Japan 2020 Census news bulletin" href="https://www.stat.go.jp/english/info/news/20210730.html">
+Statistics Bureau release summarizing 2020 population, prefecture concentration, and municipality decline.
+</LinkCard>
+
+<LinkCard title="Japan population estimates outline" href="https://www.stat.go.jp/english/data/jinsui/1.htm">
+Official description of how Japan's population estimates are produced and revised.
+</LinkCard>
+
+<LinkCard title="Japan Statistical Yearbook population tables" href="https://www.stat.go.jp/english/data/nenkan/74nenkan/1431-02.html">
+Yearbook chapter with population and prefecture-level statistical tables.
+</LinkCard>
+
+<LinkCard title="Statistical Handbook of Japan 2025 appendix" href="https://www.stat.go.jp/english/data/handbook/pdf/2025half_2.pdf">
+Appendix table with prefecture population, area, and population density figures.
+</LinkCard>

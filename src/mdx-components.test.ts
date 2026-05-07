@@ -140,4 +140,43 @@ describe("mdx component helpers", () => {
     expect(demo).toContain("PoliticalDemocracy");
     expect(demo).not.toMatch(/from "framer-motion"/);
   });
+
+  test("registers the logistic regression Motion playground and post", async () => {
+    const [registry, demo, post] = await Promise.all([
+      readFile(path.join(process.cwd(), "src", "mdx-components.tsx"), "utf8"),
+      readFile(
+        path.join(
+          process.cwd(),
+          "src",
+          "components",
+          "mdx",
+          "logistic-regression-demo.tsx",
+        ),
+        "utf8",
+      ),
+      readFile(
+        path.join(
+          process.cwd(),
+          "content",
+          "writing",
+          "logistic-regression-with-caret-in-r.mdx",
+        ),
+        "utf8",
+      ),
+    ]);
+
+    expect(registry).toContain("LogisticRegressionDemo");
+    expect(registry).toContain("@/components/mdx/logistic-regression-demo");
+    expect(demo).toContain('"use client"');
+    expect(demo).toMatch(/from "motion\/react"/);
+    expect(demo).toContain("AnimatePresence");
+    expect(demo).toContain("useReducedMotion");
+    expect(demo).toContain("decision boundary");
+    expect(demo).not.toMatch(/from "framer-motion"/);
+    expect(post).toContain("title: Logistic Regression with caret in R");
+    expect(post).toContain("<LogisticRegressionDemo />");
+    expect(post).toContain("## Sources");
+    expect(post).toContain("https://topepo.github.io/caret/");
+    expect(post).toContain("https://motion.dev/docs/react");
+  });
 });
