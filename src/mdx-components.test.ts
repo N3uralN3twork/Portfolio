@@ -179,4 +179,47 @@ describe("mdx component helpers", () => {
     expect(post).toContain("https://topepo.github.io/caret/");
     expect(post).toContain("https://motion.dev/docs/react");
   });
+
+  test("registers the matrix multiplication demo and linear algebra C++ post", async () => {
+    const [registry, demo, post] = await Promise.all([
+      readFile(path.join(process.cwd(), "src", "mdx-components.tsx"), "utf8"),
+      readFile(
+        path.join(
+          process.cwd(),
+          "src",
+          "components",
+          "mdx",
+          "matrix-multiplication-demo.tsx",
+        ),
+        "utf8",
+      ),
+      readFile(
+        path.join(
+          process.cwd(),
+          "content",
+          "writing",
+          "linear-algebra-cpp-latency.mdx",
+        ),
+        "utf8",
+      ),
+    ]);
+
+    expect(registry).toContain("MatrixMultiplicationDemo");
+    expect(registry).toContain("@/components/mdx/matrix-multiplication-demo");
+    expect(demo).toContain('"use client"');
+    expect(demo).toMatch(/from "motion\/react"/);
+    expect(demo).toContain("useReducedMotion");
+    expect(demo).toContain("motion.");
+    expect(demo).toContain("matrix multiplication");
+    expect(demo).toContain("B^T view");
+    expect(demo).not.toMatch(/from "framer-motion"/);
+    expect(post).toContain("title: Linear Algebra in C++");
+    expect(post).toContain("<MatrixMultiplicationDemo />");
+    expect((post.match(/<MatrixMultiplicationDemo \/>/g) ?? []).length).toBe(1);
+    expect(post).not.toContain("<DotProductSimilarityDemo />");
+    expect(post).toMatch(/row-major memory layout/i);
+    expect(post).toMatch(/transpos/i);
+    expect(post).toMatch(/blocking/i);
+    expect(post).toMatch(/SIMD/i);
+  });
 });

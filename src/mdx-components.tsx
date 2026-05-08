@@ -7,9 +7,11 @@ import {
   ProjectMetric,
 } from "@/components/mdx/blocks";
 import { BayesianABDemo } from "@/components/mdx/bayesian-ab-demo";
+import { DotProductSimilarityDemo } from "@/components/mdx/dot-product-similarity-demo";
 import { LavaanSemDemo } from "@/components/mdx/lavaan-sem-demo";
 import { LogisticRegressionDemo } from "@/components/mdx/logistic-regression-demo";
 import { LowLatencyCppDemo } from "@/components/mdx/low-latency-cpp-demo";
+import { MatrixMultiplicationDemo } from "@/components/mdx/matrix-multiplication-demo";
 import { MdxPre } from "@/components/mdx/mdx-pre";
 import { RandomForestDemo } from "@/components/mdx/random-forest-demo";
 import { RandomizationSchemaBuilder } from "@/components/mdx/randomization-schema-builder";
@@ -46,9 +48,11 @@ export const mdxComponents: MDXComponents = {
   LinkCard,
   ProjectMetric,
   BayesianABDemo,
+  DotProductSimilarityDemo,
   LavaanSemDemo,
   LogisticRegressionDemo,
   LowLatencyCppDemo,
+  MatrixMultiplicationDemo,
   RandomForestDemo,
   RandomizationSchemaBuilder,
 };

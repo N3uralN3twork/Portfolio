@@ -1,0 +1,367 @@
+---
+title: Linear Algebra in C++
+summary: A from-scratch C++ guide to dot products, transposes, matrix-vector multiply, cache locality, allocation control, blocking, SIMD-aware loops, and measurement discipline.
+date: "2026-05-07"
+tags:
+  - C++
+  - Linear Algebra
+  - Performance
+  - Machine Learning
+  - Low Latency
+featured: true
+difficulty: hard
+type: writing
+status: published
+readingTime: 18 min read
+---
+
+Linear algebra is often introduced as a clean world of matrices, vectors, and
+rules. Low-latency C++ pulls that world into memory, cache lines, branches,
+allocation choices, and measurement error. The math still matters, but the
+machine decides whether the implementation is calm or unpredictable.
+
+The practical question is not "can I write a transpose?" The practical question
+is: can I write it so the hot path does predictable work, touches memory in a
+friendly order, avoids surprise allocation, and still expresses the math clearly
+enough to maintain?
+
+<MatrixMultiplicationDemo />
+
+## Dot Products Are Weighted Evidence
+
+A dot product multiplies matching coordinates and adds the resulting product.
+
+$$
+x \cdot w = \sum_{i=0}^{n-1} x_i w_i
+$$
+
+In a linear model, `x` might be a feature vector and `w` might be learned
+weights. In retrieval, `x` and `w` might be embeddings. In statistics, the same
+operation appears inside projections, fitted values, and covariance-like
+calculations. The operation is small, but it is often repeated millions of
+times.
+
+A plain implementation is the right starting point:
+
+```cpp
+#include <span>
+
+double dot_product(std::span<const double> x, std::span<const double> w) {
+    double sum = 0.0;
+
+    for (std::size_t i = 0; i < x.size(); ++i) {
+        sum += x[i] * w[i];
+    }
+
+    return sum;
+}
+```
+
+This loop has a good shape for the CPU: contiguous reads, simple arithmetic,
+and one predictable branch. Before optimizing, preserve that shape. Most
+unnecessary latency comes from losing it.
+
+## Row-Major Memory Layout
+
+C++ arrays and `std::vector` store values contiguously in the order you choose.
+For a row-major matrix with `rows` rows and `cols` columns, the element at row
+`r` and column `c` lives at:
+
+```cpp
+std::size_t offset(std::size_t r, std::size_t c, std::size_t cols) {
+    return r * cols + c;
+}
+```
+
+That formula matters more than it looks. Walking across a row means reading
+adjacent memory:
+
+```cpp
+for (std::size_t c = 0; c < cols; ++c) {
+    sum += a[r * cols + c];
+}
+```
+
+Walking down a column means jumping by `cols` each time:
+
+```cpp
+for (std::size_t r = 0; r < rows; ++r) {
+    sum += a[r * cols + c];
+}
+```
+
+The math says both loops are simple. The memory system sees two very different
+access patterns. A row walk can stream through cache-friendly contiguous data.
+A column walk can skip around, especially when each row is wide.
+
+## Transposing a Matrix
+
+The transpose flips rows and columns:
+
+$$
+B_{c,r} = A_{r,c}
+$$
+
+A naive transpose is clear:
+
+```cpp
+void transpose_naive(
+    std::span<const double> a,
+    std::span<double> b,
+    std::size_t rows,
+    std::size_t cols
+) {
+    for (std::size_t r = 0; r < rows; ++r) {
+        for (std::size_t c = 0; c < cols; ++c) {
+            b[c * rows + r] = a[r * cols + c];
+        }
+    }
+}
+```
+
+The read from `a` is contiguous inside the inner loop. The write into `b` jumps
+by `rows`. For small matrices this is fine. For larger matrices, the scattered
+write pattern can dominate.
+
+A blocked transpose changes the loop order so each tile works on a small region
+that is more likely to stay hot:
+
+```cpp
+void transpose_blocked(
+    std::span<const double> a,
+    std::span<double> b,
+    std::size_t rows,
+    std::size_t cols,
+    std::size_t block
+) {
+    for (std::size_t rr = 0; rr < rows; rr += block) {
+        for (std::size_t cc = 0; cc < cols; cc += block) {
+            const std::size_t r_end = std::min(rr + block, rows);
+            const std::size_t c_end = std::min(cc + block, cols);
+
+            for (std::size_t r = rr; r < r_end; ++r) {
+                for (std::size_t c = cc; c < c_end; ++c) {
+                    b[c * rows + r] = a[r * cols + c];
+                }
+            }
+        }
+    }
+}
+```
+
+Blocking does not change the result. It changes thee memory layout.
+Instead of sweeping through the whole matrix with long-distance writes, it works
+on smaller neighborhoods.
+
+## Matrix-Vector Multiply
+
+Matrix-vector multiply is a row of dot products:
+
+$$
+y_r = \sum_{c=0}^{n-1} A_{r,c} x_c
+$$
+
+For row-major storage, this loop is naturally friendly:
+
+```cpp
+void matvec(
+    std::span<const double> a,
+    std::span<const double> x,
+    std::span<double> y,
+    std::size_t rows,
+    std::size_t cols
+) {
+    for (std::size_t r = 0; r < rows; ++r) {
+        double sum = 0.0;
+
+        for (std::size_t c = 0; c < cols; ++c) {
+            sum += a[r * cols + c] * x[c];
+        }
+
+        y[r] = sum;
+    }
+}
+```
+
+The matrix row is contiguous. The vector `x` is reused for every row. If `x` is
+small enough to remain in cache, the loop behaves well. If `x` is huge, the
+implementation becomes a bandwidth problem, not a multiplication problem.
+
+## Loop Order Is a Design Choice
+
+Matrix multiplication makes loop order impossible to ignore. For:
+
+$$
+C = A B
+$$
+
+a direct row-major implementation might start like this:
+
+```cpp
+void matmul_ijk(
+    std::span<const double> a,
+    std::span<const double> b,
+    std::span<double> c,
+    std::size_t m,
+    std::size_t n,
+    std::size_t p
+) {
+    for (std::size_t i = 0; i < m; ++i) {
+        for (std::size_t j = 0; j < p; ++j) {
+            double sum = 0.0;
+
+            for (std::size_t k = 0; k < n; ++k) {
+                sum += a[i * n + k] * b[k * p + j];
+            }
+
+            c[i * p + j] = sum;
+        }
+    }
+}
+```
+
+The access to `a` is contiguous as `k` changes. The access to `b` jumps by `p`.
+One common fix is to transpose `b` first, so both inner-loop reads are
+contiguous:
+
+```cpp
+sum += a[i * n + k] * b_transposed[j * n + k];
+```
+
+That extra transpose costs time and memory, so it only helps when the multiply
+is large or repeated enough to pay for the setup. Low latency work is full of
+these trades: sometimes doing more work once removes worse work from the hot
+path.
+
+## Allocation Avoidance
+
+Linear algebra code often allocates temporary buffers. That is fine in a batch
+script and dangerous in a tight request path. If a transpose buffer, scratch
+vector, or output matrix is needed repeatedly, allocate it outside the hot path:
+
+```cpp
+struct LinearScratch {
+    std::vector<double> transposed;
+    std::vector<double> output;
+
+    LinearScratch(std::size_t max_matrix, std::size_t max_rows)
+        : transposed(max_matrix), output(max_rows) {}
+};
+```
+
+Then pass spans into the functions that do the work. The function should not
+quietly allocate because that makes latency harder to reason about.
+
+```cpp
+void score_batch(
+    std::span<const double> features,
+    std::span<const double> weights,
+    std::span<double> scores,
+    std::size_t rows,
+    std::size_t cols
+) {
+    matvec(features, weights, scores, rows, cols);
+}
+```
+
+The ownership rule is simple: cold paths own memory; hot paths reuse memory.
+
+## Cache Locality
+
+Cache locality is not a decoration. It is often the entire optimization. A loop
+that streams through adjacent doubles can be limited by memory bandwidth in a
+predictable way. A loop that follows pointers, jumps across rows, or repeatedly
+misses cache can have a worse tail even if the code looks short.
+
+Useful habits:
+
+- Store matrix data contiguously.
+- Prefer row-major access when the data is row-major.
+- Avoid vectors of vectors for hot numerical kernels.
+- Keep loop bodies small enough for the compiler to optimize.
+- Separate setup, validation, and allocation from the hot loop.
+
+`std::vector<std::vector<double>>` is pleasant for examples, but each row is a
+separate allocation. For performance-sensitive kernels, a flat vector plus an
+index function is easier for the CPU to stream through.
+
+## Blocking and Tiling
+
+Blocking is the idea behind the blocked transpose above: operate on tiles that
+fit better in cache. The right tile size depends on data type, cache sizes,
+matrix dimensions, and surrounding work. There is no universal magic number.
+
+The useful pattern is to make the block size a measured parameter:
+
+```cpp
+for (std::size_t block : {8, 16, 32, 64}) {
+    auto samples = measure_ns([&] {
+        transpose_blocked(a, b, rows, cols, block);
+    }, 1000);
+    record(block, p50(samples), p99(samples));
+}
+```
+
+If `block = 32` wins on a laptop benchmark, that does not prove it wins in a
+production service. It proves which candidate deserves the next measurement in
+the environment that matters.
+
+## SIMD-Aware Thinking
+
+SIMD lets the CPU apply one instruction to multiple values. You do not need to
+write intrinsics to write SIMD-friendly code. Start by writing loops the
+compiler can understand:
+
+```cpp
+void axpy(
+    double alpha,
+    std::span<const double> x,
+    std::span<double> y
+) {
+    for (std::size_t i = 0; i < x.size(); ++i) {
+        y[i] += alpha * x[i];
+    }
+}
+```
+
+That loop is simple: no data-dependent branch, no function call inside the body,
+and contiguous arrays. Compilers have a much easier time vectorizing that shape.
+If you later use explicit SIMD intrinsics, the same principles still apply:
+alignment, contiguous data, predictable trip counts, and no hidden aliasing
+surprises.
+
+## Benchmarking Pitfalls
+
+Microbenchmarks are useful and easy to fool. A benchmark can lie because the
+compiler removed the work, the data fit unrealistically in cache, the input
+distribution was too small, or the benchmark measured allocation instead of the
+kernel.
+
+A minimal benchmark should:
+
+1. Warm the code before collecting samples.
+2. Use realistic matrix sizes and repeated calls.
+3. Keep input and output buffers alive across iterations.
+4. Prevent the compiler from deleting the result.
+5. Report p50, p95, and p99, not just the mean.
+
+The p99 matters because low-latency systems are experienced in the tail. A
+transpose that is usually fast but sometimes allocates, faults, or misses cache
+in an ugly pattern can still be the wrong implementation.
+
+## Practical Rules
+
+Here is the checklist I use before reaching for cleverness:
+
+- Write the clear mathematical loop first.
+- Store hot matrices in flat contiguous buffers.
+- Match loop order to memory layout.
+- Move allocation out of the hot path.
+- Transpose once when repeated access makes it worth the setup.
+- Block large transposes or multiplies when cache behavior dominates.
+- Keep kernels simple enough for compiler vectorization.
+- Benchmark the exact claim, then verify it in the larger workflow.
+
+The best low-latency linear algebra code is not just faster. It is easier to
+predict. The math tells you what the answer should be; the memory layout tells
+you how expensive it will be to get there.

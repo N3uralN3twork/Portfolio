@@ -106,8 +106,8 @@ describe("content contract", () => {
     expect(writing.map((entry) => entry.slug)).toContain(
       "low-latency-cpp-techniques",
     );
-    expect(work.map((entry) => entry.slug)).toContain(
-      "streaming-feature-platform",
+    expect(writing.map((entry) => entry.slug)).toContain(
+      "linear-algebra-cpp-latency",
     );
     expect(work.map((entry) => entry.slug)).toContain(
       "structural-equation-modeling-lavaan",
@@ -141,9 +141,24 @@ describe("content contract", () => {
     expect(lowLatencyPost.body).toMatch(/tail latency/i);
     expect(lowLatencyPost.body).toMatch(/false sharing/i);
 
-    const project = await getContentBySlug("work", "streaming-feature-platform");
-    expect(project.meta.type).toBe("work");
-    expect(project.body).toMatch(/feature freshness/i);
+    const linearAlgebraPost = await getContentBySlug(
+      "writing",
+      "linear-algebra-cpp-latency",
+    );
+    expect(linearAlgebraPost.meta.featured).toBe(true);
+    expect(linearAlgebraPost.meta.difficulty).toBe("hard");
+    expect(linearAlgebraPost.meta.tags).toEqual(
+      expect.arrayContaining([
+        "C++",
+        "Linear Algebra",
+        "Performance",
+        "Machine Learning",
+        "Low Latency",
+      ]),
+    );
+    expect(linearAlgebraPost.body).toMatch(/dot product/i);
+    expect(linearAlgebraPost.body).toMatch(/matrix-vector multiply/i);
+    expect(linearAlgebraPost.body).toMatch(/benchmarking pitfalls/i);
 
     const lavaanLab = await getContentBySlug(
       "work",
@@ -167,9 +182,9 @@ describe("content contract", () => {
           href: "/writing/bayesian-drift-detection",
         }),
         expect.objectContaining({
-          kind: "work",
-          slug: "streaming-feature-platform",
-          href: "/work/streaming-feature-platform",
+          kind: "writing",
+          slug: "linear-algebra-cpp-latency",
+          href: "/writing/linear-algebra-cpp-latency",
         }),
         expect.objectContaining({
           kind: "work",
@@ -194,6 +209,10 @@ describe("content contract", () => {
       .toMatch(/cache locality/i);
     expect(index.find((item) => item.slug === "low-latency-cpp-techniques")?.text)
       .toMatch(/p99/i);
+    expect(index.find((item) => item.slug === "linear-algebra-cpp-latency")?.text)
+      .toMatch(/dot product/i);
+    expect(index.find((item) => item.slug === "linear-algebra-cpp-latency")?.text)
+      .toMatch(/matrix-vector/i);
     expect(
       index.find((item) => item.slug === "structural-equation-modeling-lavaan")
         ?.text,
