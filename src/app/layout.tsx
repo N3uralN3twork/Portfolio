@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "katex/dist/katex.min.css";
+import "leaflet/dist/leaflet.css";
 import "./globals.css";
 import { ReadingProgress } from "@/components/reading-progress";
 import { SiteHeader } from "@/components/site-header";

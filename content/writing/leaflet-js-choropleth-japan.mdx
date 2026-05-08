@@ -1,0 +1,266 @@
+---
+author: Matthias Quinn
+title: Building a Leaflet.js Choropleth Map of Japan
+summary: A JavaScript Leaflet walkthrough for joining GeoJSON boundaries to official 2024 population metrics and turning the result into an interactive choropleth.
+cardImg: /images/LeafletLogo.png
+bannerImg: /images/LeafletLogo.png
+imageAlt: Leaflet logo
+date: 2026-05-08
+tags:
+  - JavaScript
+  - Leaflet
+  - Maps
+  - Data Visualization
+  - GeoJSON
+difficulty: medium
+type: writing
+status: published
+---
+
+# Building a Leaflet.js Choropleth Map of Japan
+
+<div className="not-prose my-8 grid gap-4 sm:grid-cols-2">
+  <div className="rounded-lg border bg-card p-5">
+    <p className="text-sm font-semibold uppercase tracking-normal text-muted-foreground">Goal</p>
+    <p className="mt-2 text-base leading-7">Build a choropleth map by joining prefecture boundaries to current population metrics.</p>
+  </div>
+  <div className="rounded-lg border bg-card p-5">
+    <p className="text-sm font-semibold uppercase tracking-normal text-muted-foreground">Result</p>
+    <p className="mt-2 text-base leading-7">A Leaflet.js map with metric toggles, hover highlighting, popups, a legend, a scale control, and a layer switcher.</p>
+  </div>
+</div>
+
+My earlier Leaflet note used the R wrapper around Leaflet. This version goes one layer lower and uses Leaflet.js directly inside a Next.js MDX article.
+
+The mapping idea is the same: start with geometry, join real data to it, and color each polygon by a metric. The implementation changes because the browser is now responsible for creating the map, responding to pointer events, and updating the choropleth when a reader switches metrics.
+
+<JapanLeafletChoroplethDemo />
+
+## Version Note
+
+I read the Leaflet 2.0.0 API reference while writing this, but the site currently has `leaflet@1.9.4` installed. Leaflet 2.0 examples use class constructors such as `new Map(...)`, `new GeoJSON(...)`, and `new Control.Layers(...)`.
+
+For this live demo, I kept the installed package and used the Leaflet 1.x factory style:
+
+```ts
+import L from "leaflet";
+
+const map = L.map("map", {
+  center: [37.8, 138.5],
+  zoom: 5,
+});
+```
+
+The concepts carry across versions: a `Map` owns the view, a `TileLayer` supplies the basemap, `GeoJSON` turns features into Leaflet layers, and controls such as layers and scale sit on top of the map.
+
+## Data Shape
+
+A choropleth needs two datasets:
+
+1. A boundary file that knows how to draw each region.
+2. A metric table that says what value belongs to each region.
+
+For the boundaries, I used the same Japan prefecture GeoJSON source from the older post. Each feature has an `id`, English name, Japanese name, and polygon geometry:
+
+```json
+{
+  "type": "Feature",
+  "properties": {
+    "nam": "Tokyo To",
+    "nam_ja": "Tokyo",
+    "id": 13
+  },
+  "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": []
+  }
+}
+```
+
+For the metrics, I curated the 2024 official population estimate tables into a local JSON file. The demo uses total population, annual population change per 1,000 residents, age 65+ share, and population density:
+
+```json
+{
+  "id": 13,
+  "prefecture": "Tokyo-to",
+  "totalPopulation": 14178000,
+  "annualPopulationChangePerMille": 6.6,
+  "olderAdultShare": 22.7,
+  "populationDensityPerKm2": 6403
+}
+```
+
+The most important detail is not the map code. It is the join key. If the GeoJSON and statistics table disagree about the key, Leaflet may still render a map, but the colors will be wrong or missing.
+
+```ts
+const recordById = new Map(records.map((record) => [record.id, record]));
+
+const joinedCount = geoJson.features.filter((feature) =>
+  recordById.has(Number(feature.properties.id)),
+).length;
+```
+
+For this dataset, the join check should return 47 of 47 prefectures.
+
+## Creating The Map
+
+Leaflet needs a real browser element, so the map belongs in a client component. In Next.js, that means the component starts with `"use client"` and initializes Leaflet inside an effect after the page hydrates.
+
+```tsx
+"use client";
+
+import { useEffect, useRef } from "react";
+
+export function JapanMap() {
+  const mapNodeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    async function draw() {
+      const L = await import("leaflet");
+
+      if (!mapNodeRef.current) {
+        return;
+      }
+
+      const map = L.map(mapNodeRef.current, {
+        center: [37.8, 138.5],
+        zoom: 5,
+        scrollWheelZoom: false,
+      });
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap contributors",
+      }).addTo(map);
+    }
+
+    draw();
+  }, []);
+
+  return <div ref={mapNodeRef} className="h-[32rem]" />;
+}
+```
+
+The dynamic import keeps Leaflet out of the server-rendered path. That matters because Leaflet expects browser APIs such as `window` and DOM nodes.
+
+## Styling GeoJSON
+
+Leaflet's GeoJSON layer accepts a `style` function. That function runs once for each feature and returns path options such as stroke color, fill color, weight, and opacity.
+
+```ts
+const layer = L.geoJSON(geoJson, {
+  style: (feature) => {
+    const record = recordById.get(Number(feature.properties.id));
+    const value = record?.totalPopulation ?? 0;
+
+    return {
+      color: "#ffffff",
+      weight: 1,
+      fillColor: getChoroplethColor(value, bins),
+      fillOpacity: 0.78,
+    };
+  },
+}).addTo(map);
+```
+
+The binning function turns a continuous metric into five color intervals. That is easier to explain to readers than a fully continuous color scale, especially when the metrics have very different ranges.
+
+```ts
+const bins = buildChoroplethBins(records, "olderAdultShare", 5);
+const color = getChoroplethColor(record.olderAdultShare, bins);
+```
+
+## Popups, Hover, And Selection
+
+The `onEachFeature` option is where each polygon gets behavior. This is the natural place to attach popups, hover highlighting, click selection, and tooltips.
+
+```ts
+L.geoJSON(geoJson, {
+  onEachFeature: (feature, layer) => {
+    const record = recordById.get(Number(feature.properties.id));
+
+    if (!record) {
+      return;
+    }
+
+    layer.bindTooltip(record.prefecture, { sticky: true });
+    layer.bindPopup(`
+      <strong>${record.prefecture}</strong><br/>
+      Population: ${record.totalPopulation.toLocaleString()}
+    `);
+
+    layer.on({
+      mouseover: () => layer.setStyle({ weight: 2, fillOpacity: 0.92 }),
+      mouseout: () => geoJsonLayer.resetStyle(layer),
+      click: () => layer.openPopup(),
+    });
+  },
+});
+```
+
+That small block changes the map from a static picture into an exploratory interface. A reader can scan color, hover for names, and click for exact values.
+
+## Controls And Bounds
+
+Leaflet controls are small UI widgets that live on the map. This demo uses a scale control and a layer control. The live component defaults to a local reference grid so the post can render without external tile access, while OpenStreetMap and Carto remain available in the layer picker:
+
+```ts
+const osm = L.tileLayer(osmUrl, { attribution: osmAttribution });
+const carto = L.tileLayer(cartoUrl, { attribution: cartoAttribution });
+
+const localGrid = L.gridLayer({ attribution: "Local reference grid" });
+
+const map = L.map(mapNode, {
+  layers: [localGrid],
+});
+
+L.control
+  .layers({ "Local grid": localGrid, OpenStreetMap: osm, "Carto light": carto })
+  .addTo(map);
+L.control.scale({ imperial: false }).addTo(map);
+```
+
+Once the prefecture layer exists, `fitBounds()` moves the viewport so Japan is framed without hard-coding a zoom level:
+
+```ts
+const prefectures = L.geoJSON(geoJson).addTo(map);
+
+map.fitBounds(prefectures.getBounds(), {
+  padding: [18, 18],
+});
+```
+
+That is usually better than guessing center and zoom values, because it still works if the boundary file changes.
+
+## What To Check Before Trusting The Map
+
+The code that renders the map is only part of the work. I also want these checks nearby:
+
+- The GeoJSON has 47 features.
+- The metric table has 47 prefecture records.
+- Every GeoJSON `id` joins to exactly one metric row.
+- The metric values are finite numbers.
+- The color bins are stable and understandable.
+
+The live component uses local static JSON for both the geometry and the cleaned metric table. That makes the post reliable at runtime: only basemap tiles are fetched from outside the site.
+
+## Sources
+
+<LinkCard title="Leaflet 2.0 API reference" href="https://leafletjs.com/reference-2.0.0.html">
+The reference used for the conceptual API review, including Map, GeoJSON, TileLayer, layer controls, scale controls, and fitBounds.
+</LinkCard>
+
+<LinkCard title="Japan prefecture GeoJSON source" href="https://raw.githubusercontent.com/N3uralN3twork/R-Projects/master/Map%20Making/Japan/japanGeoData.geojson">
+The boundary file used for drawing prefecture polygons.
+</LinkCard>
+
+<LinkCard title="2024 Japan Population Estimates" href="https://www.stat.go.jp/english/data/jinsui/2024np/index.html">
+Statistics Bureau of Japan summary and links to the official 2024 population estimate tables.
+</LinkCard>
+
+<LinkCard title="e-Stat 2024 Population Estimates file list" href="https://www.e-stat.go.jp/en/stat-search/files?layout=datalist&lid=000001457290&page=1">
+Official downloadable tables used to curate the local population, change-rate, and age-share JSON.
+</LinkCard>
+
+<LinkCard title="Statistical Handbook of Japan 2025 appendix" href="https://www.stat.go.jp/english/data/handbook/pdf/2025half_2.pdf">
+Appendix source for prefecture area and population density values.
+</LinkCard>

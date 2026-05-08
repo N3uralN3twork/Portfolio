@@ -9,6 +9,7 @@ import {
 import { BayesianABDemo } from "@/components/mdx/bayesian-ab-demo";
 import { DotProductSimilarityDemo } from "@/components/mdx/dot-product-similarity-demo";
 import { LavaanSemDemo } from "@/components/mdx/lavaan-sem-demo";
+import { JapanLeafletChoroplethDemo } from "@/components/mdx/japan-leaflet-choropleth-demo";
 import { LogisticRegressionDemo } from "@/components/mdx/logistic-regression-demo";
 import { LowLatencyCppDemo } from "@/components/mdx/low-latency-cpp-demo";
 import { MatrixMultiplicationDemo } from "@/components/mdx/matrix-multiplication-demo";
@@ -50,6 +51,7 @@ export const mdxComponents: MDXComponents = {
   BayesianABDemo,
   DotProductSimilarityDemo,
   LavaanSemDemo,
+  JapanLeafletChoroplethDemo,
   LogisticRegressionDemo,
   LowLatencyCppDemo,
   MatrixMultiplicationDemo,
