@@ -115,6 +115,32 @@ describe("mdx component helpers", () => {
     expect(blocks).toContain('"warning"');
   });
 
+  test("registers the side-by-side content panel and multifactor usage", async () => {
+    const [registry, blocks, post] = await Promise.all([
+      readFile(path.join(process.cwd(), "src", "mdx-components.tsx"), "utf8"),
+      readFile(
+        path.join(process.cwd(), "src", "components", "mdx", "blocks.tsx"),
+        "utf8",
+      ),
+      readFile(
+        path.join(
+          process.cwd(),
+          "content",
+          "work",
+          "multifactor-model.mdx",
+        ),
+        "utf8",
+      ),
+    ]);
+
+    expect(registry).toContain("SideBySide");
+    expect(registry).toContain("@/components/mdx/blocks");
+    expect(blocks).toContain("export const SideBySide");
+    expect(blocks).toContain("SideBySide.Panel");
+    expect(post).toContain("<SideBySide>");
+    expect((post.match(/<SideBySide>/g) ?? []).length).toBe(1);
+  });
+
   test("registers the lavaan SEM Motion demo for MDX lab entries", async () => {
     const [registry, demo] = await Promise.all([
       readFile(path.join(process.cwd(), "src", "mdx-components.tsx"), "utf8"),

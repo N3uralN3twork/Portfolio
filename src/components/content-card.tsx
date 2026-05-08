@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowUpRightIcon } from "lucide-react";
 import { ContentCategoryThumbnail } from "@/components/content-category-thumbnail";
 import { ContentDifficultyBadge } from "@/components/content-difficulty-badge";
+import { ContentImage } from "@/components/content-image";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -13,10 +14,24 @@ import {
 import type { ContentEntry } from "@/lib/content";
 
 export function ContentCard({ entry }: { entry: ContentEntry }) {
+  const cardImage = entry.meta.cardImage ?? entry.meta.bannerImage;
+
   return (
     <Card className="h-full pt-0 transition-colors hover:bg-muted/30">
       <Link href={entry.href} aria-label={entry.meta.title}>
-        <ContentCategoryThumbnail title={entry.meta.title} tags={entry.meta.tags} />
+        {cardImage ? (
+          <ContentImage
+            src={cardImage}
+            alt={entry.meta.imageAlt ?? `${entry.meta.title} preview`}
+            sizes="(min-width: 768px) 33vw, 100vw"
+            className="aspect-[16/9] rounded-t-xl border-b"
+          />
+        ) : (
+          <ContentCategoryThumbnail
+            title={entry.meta.title}
+            tags={entry.meta.tags}
+          />
+        )}
       </Link>
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">

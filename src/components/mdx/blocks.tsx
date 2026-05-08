@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   AlertTriangleIcon,
   ArrowUpRightIcon,
@@ -57,6 +58,56 @@ export function ProjectMetric({
     </Card>
   );
 }
+
+type SideBySideComponent = {
+  ({ children }: { children: React.ReactNode }): React.ReactElement;
+  Panel: typeof SideBySidePanel;
+};
+
+function SideBySideRoot({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="not-prose my-8 grid gap-4 md:grid-cols-2">{children}</div>
+  );
+}
+
+function SideBySidePanel({
+  title,
+  imageSrc,
+  imageAlt,
+  children,
+}: {
+  title?: string;
+  imageSrc?: string;
+  imageAlt?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card className="h-full overflow-hidden border-border/80 bg-card/95">
+      {imageSrc ? (
+        <div className="relative aspect-[16/9] bg-muted">
+          <Image
+            src={imageSrc}
+            alt={imageAlt ?? ""}
+            fill
+            sizes="(min-width: 768px) 50vw, 100vw"
+            className="object-cover"
+          />
+        </div>
+      ) : null}
+      {title ? (
+        <CardHeader>
+          <CardTitle className="text-lg tracking-normal">{title}</CardTitle>
+        </CardHeader>
+      ) : null}
+      <CardContent className="flex flex-col gap-4 text-sm leading-7 text-muted-foreground [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_code]:rounded-md [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-foreground [&_ol]:flex [&_ol]:list-decimal [&_ol]:flex-col [&_ol]:gap-2 [&_ol]:pl-5 [&_strong]:text-foreground [&_ul]:flex [&_ul]:list-disc [&_ul]:flex-col [&_ul]:gap-2 [&_ul]:pl-5">
+        {children}
+      </CardContent>
+    </Card>
+  );
+}
+
+export const SideBySide = SideBySideRoot as SideBySideComponent;
+SideBySide.Panel = SideBySidePanel;
 
 export function LinkCard({
   title,

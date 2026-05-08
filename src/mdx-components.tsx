@@ -5,6 +5,7 @@ import {
   LabChart,
   LinkCard,
   ProjectMetric,
+  SideBySide,
 } from "@/components/mdx/blocks";
 import { BayesianABDemo } from "@/components/mdx/bayesian-ab-demo";
 import { DotProductSimilarityDemo } from "@/components/mdx/dot-product-similarity-demo";
@@ -48,6 +49,7 @@ export const mdxComponents: MDXComponents = {
   LabChart,
   LinkCard,
   ProjectMetric,
+  SideBySide,
   BayesianABDemo,
   DotProductSimilarityDemo,
   LavaanSemDemo,
