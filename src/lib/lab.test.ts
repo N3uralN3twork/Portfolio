@@ -5,7 +5,6 @@ describe("lab demos", () => {
   test("defines the Decision Lab demos", () => {
     expect(labDemos.map((demo) => demo.title)).toEqual([
       "Latency Budget Simulator",
-      "Pipeline Failure Drill",
       "Model Serving Tradeoff",
       "lavaan SEM Workbench",
     ]);

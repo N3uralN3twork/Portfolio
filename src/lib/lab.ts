@@ -36,17 +36,6 @@ export const labDemos: LabDemo[] = [
     icon: ActivityIcon,
   },
   {
-    id: "pipeline-failure",
-    title: "Pipeline Failure Drill",
-    kicker: "Incident reasoning",
-    description:
-      "Walk a production data symptom backward through freshness, schema, feature, and publishing checks until the operational root cause is visible.",
-    tags: ["Data quality", "Monitoring", "Root cause", "SLOs"],
-    relatedHref: "/work/streaming-feature-platform",
-    relatedLabel: "View streaming platform",
-    icon: GitBranchIcon,
-  },
-  {
     id: "model-serving",
     title: "Model Serving Tradeoff",
     kicker: "Architecture choice",
