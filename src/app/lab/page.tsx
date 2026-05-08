@@ -4,7 +4,7 @@ import { LabClient } from "./lab-client";
 export const metadata: Metadata = {
   title: "Decision Lab",
   description:
-    "Interactive systems and statistics demos for latency, data pipeline failures, production model serving, and SEM workflows.",
+    "Interactive systems and statistics demos for latency, data pipeline failures, and SEM workflows.",
 };
 
 export default function LabPage() {
@@ -19,8 +19,7 @@ export default function LabPage() {
         </h1>
         <p className="text-lg leading-8 text-muted-foreground">
           Small production-minded demos for the choices that shape reliable data
-          and machine learning systems: latency budgets, pipeline failures, and
-          serving architecture tradeoffs, plus statistical modeling workflows
+          and machine learning systems: latency budgets plus statistical modeling workflows
           where syntax, diagrams, and diagnostics need to agree.
         </p>
       </header>

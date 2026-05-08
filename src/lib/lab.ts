@@ -36,17 +36,6 @@ export const labDemos: LabDemo[] = [
     icon: ActivityIcon,
   },
   {
-    id: "model-serving",
-    title: "Model Serving Tradeoff",
-    kicker: "Architecture choice",
-    description:
-      "Compare batch, streaming, and low-latency serving modes by freshness, cost, auditability, and failure tolerance before picking an implementation.",
-    tags: ["Serving", "ML systems", "Tradeoffs", "Reliability"],
-    relatedHref: "/work/retrieval-evaluation-lab",
-    relatedLabel: "View evaluation lab",
-    icon: RadioTowerIcon,
-  },
-  {
     id: "lavaan-sem",
     title: "lavaan SEM Workbench",
     kicker: "Model syntax",
