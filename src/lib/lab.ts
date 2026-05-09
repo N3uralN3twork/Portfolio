@@ -1,8 +1,6 @@
 import {
   ActivityIcon,
   BracesIcon,
-  GitBranchIcon,
-  RadioTowerIcon,
   type LucideIcon,
 } from "lucide-react";
 

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680" role="img" aria-labelledby="title desc">
+  <title id="title">Second-generation p-value interval overlap schematic</title>
+  <desc id="desc">A schematic showing an interval null, an estimate interval, the overlap used for p_delta, and a point null used for a traditional p-value.</desc>
+  <rect width="1200" height="680" fill="#f8fafc"/>
+  <text x="72" y="72" fill="#111827" font-family="Arial, sans-serif" font-size="34" font-weight="700">Interval overlap, not tail area</text>
+  <text x="72" y="112" fill="#4b5563" font-family="Arial, sans-serif" font-size="20">Second-generation p-values summarize compatibility between an uncertainty interval and a prespecified interval null.</text>
+  <line x1="110" x2="1090" y1="430" y2="430" stroke="#374151" stroke-width="4" stroke-linecap="round"/>
+  <g font-family="Arial, sans-serif" font-size="18" fill="#4b5563">
+    <text x="100" y="470">-0.6</text>
+    <text x="258" y="470">-0.4</text>
+    <text x="416" y="470">-0.2</text>
+    <text x="590" y="470">0</text>
+    <text x="748" y="470">0.2</text>
+    <text x="908" y="470">0.4</text>
+    <text x="1066" y="470">0.6</text>
+  </g>
+  <g stroke="#cbd5e1" stroke-width="2">
+    <line x1="120" x2="120" y1="180" y2="430"/>
+    <line x1="280" x2="280" y1="180" y2="430"/>
+    <line x1="440" x2="440" y1="180" y2="430"/>
+    <line x1="600" x2="600" y1="150" y2="430"/>
+    <line x1="760" x2="760" y1="180" y2="430"/>
+    <line x1="920" x2="920" y1="180" y2="430"/>
+    <line x1="1080" x2="1080" y1="180" y2="430"/>
+  </g>
+  <line x1="600" x2="600" y1="150" y2="430" stroke="#111827" stroke-width="4" stroke-dasharray="10 12"/>
+  <rect x="440" y="205" width="320" height="94" rx="18" fill="#dbeafe" stroke="#2563eb" stroke-width="4"/>
+  <text x="462" y="196" fill="#1d4ed8" font-family="Arial, sans-serif" font-size="20" font-weight="700">interval null: effects too small to matter</text>
+  <line x1="680" x2="920" y1="350" y2="350" stroke="#059669" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="800" cy="350" r="17" fill="#111827"/>
+  <text x="690" y="334" fill="#047857" font-family="Arial, sans-serif" font-size="20" font-weight="700">95% estimate interval</text>
+  <line x1="680" x2="760" y1="382" y2="382" stroke="#f59e0b" stroke-width="18" stroke-linecap="round"/>
+  <text x="675" y="414" fill="#92400e" font-family="Arial, sans-serif" font-size="18" font-weight="700">overlap</text>
+  <text x="72" y="540" fill="#111827" font-family="Arial, sans-serif" font-size="25" font-weight="700">p_delta = overlap / min(2 x null length, estimate length)</text>
+  <text x="72" y="582" fill="#4b5563" font-family="Arial, sans-serif" font-size="20">When the overlap is zero, report the delta gap: the distance from the null region in null half-widths.</text>
+  <text x="72" y="620" fill="#6b7280" font-family="Arial, sans-serif" font-size="16">Original schematic recreated from concepts in public/sgpv/SGPV_ASA_Full_Day_Part1.Rmd and the local SGPV PDFs.</text>
+</svg>

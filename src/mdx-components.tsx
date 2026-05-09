@@ -17,6 +17,10 @@ import { MatrixMultiplicationDemo } from "@/components/mdx/matrix-multiplication
 import { MdxPre } from "@/components/mdx/mdx-pre";
 import { RandomForestDemo } from "@/components/mdx/random-forest-demo";
 import { RandomizationSchemaBuilder } from "@/components/mdx/randomization-schema-builder";
+import {
+  SgpvAppliedResultsPath,
+  SgpvIntervalWorkbench,
+} from "@/components/mdx/sgpv-demos";
 import { parseMdxStyleString } from "@/lib/mdx-style";
 
 export const mdxComponents: MDXComponents = {
@@ -59,6 +63,8 @@ export const mdxComponents: MDXComponents = {
   MatrixMultiplicationDemo,
   RandomForestDemo,
   RandomizationSchemaBuilder,
+  SgpvAppliedResultsPath,
+  SgpvIntervalWorkbench,
 };
 
 export function useMDXComponents(): MDXComponents {

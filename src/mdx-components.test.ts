@@ -248,4 +248,44 @@ describe("mdx component helpers", () => {
     expect(post).toMatch(/blocking/i);
     expect(post).toMatch(/SIMD/i);
   });
+
+  test("registers the SGPV Motion demos and writing post", async () => {
+    const [registry, demo, post] = await Promise.all([
+      readFile(path.join(process.cwd(), "src", "mdx-components.tsx"), "utf8"),
+      readFile(
+        path.join(
+          process.cwd(),
+          "src",
+          "components",
+          "mdx",
+          "sgpv-demos.tsx",
+        ),
+        "utf8",
+      ),
+      readFile(
+        path.join(
+          process.cwd(),
+          "content",
+          "writing",
+          "second-generation-p-values.mdx",
+        ),
+        "utf8",
+      ),
+    ]);
+
+    expect(registry).toContain("SgpvIntervalWorkbench");
+    expect(registry).toContain("SgpvAppliedResultsPath");
+    expect(registry).toContain("@/components/mdx/sgpv-demos");
+    expect(demo).toContain('"use client"');
+    expect(demo).toMatch(/from "motion\/react"/);
+    expect(demo).toContain("useReducedMotion");
+    expect(demo).toContain("motion.");
+    expect(demo).toContain("p_delta");
+    expect(demo).not.toMatch(/from "framer-motion"/);
+    expect(post).toContain("title: Second-Generation p-Values");
+    expect(post).toContain("<SgpvIntervalWorkbench />");
+    expect(post).toContain("<SgpvAppliedResultsPath />");
+    expect(post).toContain("public/sgpv/SGPV_ASA_Full_Day_Part1.Rmd");
+    expect(post).toContain("https://motion.dev/docs/studio-install");
+  });
 });

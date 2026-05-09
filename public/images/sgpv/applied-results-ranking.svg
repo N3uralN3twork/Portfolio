@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Applied SGPV ranking schematic</title>
+  <desc id="desc">A schematic comparing classical p-value ranking with second-generation p-value classification for many interval estimates.</desc>
+  <rect width="1200" height="720" fill="#fbfdff"/>
+  <text x="72" y="72" fill="#111827" font-family="Arial, sans-serif" font-size="34" font-weight="700">Many estimates, two rankings</text>
+  <text x="72" y="112" fill="#4b5563" font-family="Arial, sans-serif" font-size="20">The same fitted intervals can be sorted by tail area or by practical compatibility with an interval null.</text>
+  <rect x="90" y="168" width="450" height="410" rx="18" fill="#f8fafc" stroke="#cbd5e1" stroke-width="3"/>
+  <rect x="660" y="168" width="450" height="410" rx="18" fill="#f8fafc" stroke="#cbd5e1" stroke-width="3"/>
+  <text x="120" y="215" fill="#111827" font-family="Arial, sans-serif" font-size="24" font-weight="700">Classical p-value rank</text>
+  <text x="690" y="215" fill="#111827" font-family="Arial, sans-serif" font-size="24" font-weight="700">SGPV status</text>
+  <text x="120" y="247" fill="#6b7280" font-family="Arial, sans-serif" font-size="17">Smallest tail areas first</text>
+  <text x="690" y="247" fill="#6b7280" font-family="Arial, sans-serif" font-size="17">Interval-null exclusion first</text>
+  <g stroke-width="10" stroke-linecap="round">
+    <line x1="170" x2="420" y1="300" y2="300" stroke="#059669"/>
+    <line x1="210" x2="380" y1="340" y2="340" stroke="#f59e0b"/>
+    <line x1="135" x2="455" y1="380" y2="380" stroke="#dc2626"/>
+    <line x1="245" x2="492" y1="420" y2="420" stroke="#059669"/>
+    <line x1="180" x2="354" y1="460" y2="460" stroke="#f59e0b"/>
+    <line x1="145" x2="310" y1="500" y2="500" stroke="#059669"/>
+  </g>
+  <g stroke-width="10" stroke-linecap="round">
+    <line x1="715" x2="965" y1="300" y2="300" stroke="#059669"/>
+    <line x1="690" x2="855" y1="340" y2="340" stroke="#059669"/>
+    <line x1="790" x2="1037" y1="380" y2="380" stroke="#059669"/>
+    <line x1="735" x2="905" y1="420" y2="420" stroke="#f59e0b"/>
+    <line x1="725" x2="899" y1="460" y2="460" stroke="#f59e0b"/>
+    <line x1="680" x2="1000" y1="500" y2="500" stroke="#dc2626"/>
+  </g>
+  <g fill="#111827">
+    <circle cx="300" cy="300" r="8"/>
+    <circle cx="295" cy="340" r="8"/>
+    <circle cx="295" cy="380" r="8"/>
+    <circle cx="368" cy="420" r="8"/>
+    <circle cx="267" cy="460" r="8"/>
+    <circle cx="228" cy="500" r="8"/>
+    <circle cx="840" cy="300" r="8"/>
+    <circle cx="773" cy="340" r="8"/>
+    <circle cx="914" cy="380" r="8"/>
+    <circle cx="820" cy="420" r="8"/>
+    <circle cx="812" cy="460" r="8"/>
+    <circle cx="840" cy="500" r="8"/>
+  </g>
+  <rect x="285" y="270" width="60" height="255" fill="#dbeafe" opacity="0.75"/>
+  <rect x="832" y="270" width="60" height="255" fill="#dbeafe" opacity="0.75"/>
+  <g font-family="Arial, sans-serif" font-size="17" fill="#374151">
+    <text x="120" y="622">green: p_delta = 0</text>
+    <text x="405" y="622">amber: inconclusive</text>
+    <text x="690" y="622">red: p_delta = 1</text>
+  </g>
+  <text x="72" y="670" fill="#6b7280" font-family="Arial, sans-serif" font-size="16">Original schematic recreated from public/sgpv workshop examples using leukstats, logistic-regression intervals, plotsgpv(), and plotman().</text>
+</svg>

@@ -10,7 +10,7 @@ describe("lab demos", () => {
   });
 
   test("keeps each demo grounded and cross-links to existing sections", () => {
-    expect(labDemos).toHaveLength(4);
+    expect(labDemos).toHaveLength(2);
 
     for (const demo of labDemos) {
       expect(demo.description.length).toBeGreaterThan(60);
