@@ -250,7 +250,7 @@ describe("mdx component helpers", () => {
   });
 
   test("registers the SGPV Motion demos and writing post", async () => {
-    const [registry, demo, post] = await Promise.all([
+    const [registry, demo, opener, post] = await Promise.all([
       readFile(path.join(process.cwd(), "src", "mdx-components.tsx"), "utf8"),
       readFile(
         path.join(
@@ -259,6 +259,16 @@ describe("mdx component helpers", () => {
           "components",
           "mdx",
           "sgpv-demos.tsx",
+        ),
+        "utf8",
+      ),
+      readFile(
+        path.join(
+          process.cwd(),
+          "src",
+          "components",
+          "mdx",
+          "second-gen-p-values-demo.tsx",
         ),
         "utf8",
       ),
@@ -275,14 +285,25 @@ describe("mdx component helpers", () => {
 
     expect(registry).toContain("SgpvIntervalWorkbench");
     expect(registry).toContain("SgpvAppliedResultsPath");
+    expect(registry).toContain("SgpvSceneExplorer");
     expect(registry).toContain("@/components/mdx/sgpv-demos");
+    expect(registry).toContain("@/components/mdx/second-gen-p-values-demo");
     expect(demo).toContain('"use client"');
     expect(demo).toMatch(/from "motion\/react"/);
     expect(demo).toContain("useReducedMotion");
     expect(demo).toContain("motion.");
     expect(demo).toContain("p_delta");
     expect(demo).not.toMatch(/from "framer-motion"/);
+    expect(opener).toContain("export function SgpvSceneExplorer");
+    expect(opener).toContain("@/components/mdx/wide-demo-card");
+    expect(opener).toMatch(/from "motion\/react"/);
+    expect(opener).toContain("useReducedMotion");
+    expect(opener).toContain("computeSgpv");
+    expect(opener).toContain("normalTheoryComparison");
+    expect(opener).not.toContain("<style>");
+    expect(opener).not.toMatch(/from "framer-motion"/);
     expect(post).toContain("title: Second-Generation p-Values");
+    expect(post).toContain("<SgpvSceneExplorer />");
     expect(post).toContain("<SgpvIntervalWorkbench />");
     expect(post).toContain("<SgpvAppliedResultsPath />");
     expect(post).toContain("public/sgpv/SGPV_ASA_Full_Day_Part1.Rmd");
