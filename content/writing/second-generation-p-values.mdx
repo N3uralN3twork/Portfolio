@@ -36,6 +36,24 @@ status: published
   </SideBySide.Panel>
 </SideBySide>
 
+---
+
+<figure className="not-prose my-10 md:relative md:left-1/2 md:w-[min(92vw,56rem)] md:-translate-x-1/2">
+  <a href="/images/sgpv/SGPV-Infographic.png" target="_blank" rel="noreferrer">
+    <img
+      src="/images/sgpv/SGPV-Infographic.png"
+      alt="Infographic comparing classical p-values with second-generation p-values"
+      className="h-auto w-full rounded-lg border bg-white"
+    />
+  </a>
+  <figcaption className="mt-3 text-sm leading-6 text-muted-foreground">
+    Infographic summary of the classical p-value workflow, second-generation
+    p-value definition, visual interpretation, and worked examples. Click to
+    open the full-size image.
+  </figcaption>
+</figure>
+---
+
 Second-generation p-values are an attempt to make a frequentist summary answer a better scientific question. A traditional p-value asks how surprising a test statistic would be if a point null hypothesis were exactly true. The second-generation p-value asks how much of an interval estimate overlaps a scientifically meaningful null region.
 
 That sounds like a small geometric change. It is not. It moves the analysis from "is the effect exactly zero?" to "does the data-supported effect region include values that are null or practically trivial?" It also creates an explicit third state: inconclusive evidence. For many real studies, that third state is the honest state.
