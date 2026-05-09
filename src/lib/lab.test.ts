@@ -15,7 +15,7 @@ describe("lab demos", () => {
     for (const demo of labDemos) {
       expect(demo.description.length).toBeGreaterThan(60);
       expect(demo.tags.length).toBeGreaterThanOrEqual(3);
-      expect(demo.relatedHref).toMatch(/^\/(work|writing|animations)\//);
+      expect(demo.relatedHref).toMatch(/^\/(work|writing)\//);
       expect(demo.relatedLabel).toMatch(/^(Read|View|Open) /);
     }
 

@@ -5,7 +5,6 @@ import {
   FileTextIcon,
   FolderKanbanIcon,
   HomeIcon,
-  SparklesIcon,
   UserIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -26,7 +25,6 @@ const staticItems = [
   { label: "Home", href: "/", icon: HomeIcon },
   { label: "Work", href: "/work", icon: FolderKanbanIcon },
   { label: "Writing", href: "/writing", icon: FileTextIcon },
-  { label: "Animations", href: "/animations", icon: SparklesIcon },
   { label: "About", href: "/about", icon: UserIcon },
 ];
 
