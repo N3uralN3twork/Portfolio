@@ -304,8 +304,10 @@ describe("mdx component helpers", () => {
     expect(opener).not.toMatch(/from "framer-motion"/);
     expect(post).toContain("title: Second-Generation p-Values");
     expect(post).toContain("<SgpvSceneExplorer />");
+    expect(post).toContain('<SideBySide.Panel title="Question">');
     expect(post).toContain("<SgpvIntervalWorkbench />");
     expect(post).toContain("<SgpvAppliedResultsPath />");
+    expect(post).not.toContain("md:grid-cols-3");
     expect(post).toContain("public/sgpv/SGPV_ASA_Full_Day_Part1.Rmd");
     expect(post).toContain("https://motion.dev/docs/studio-install");
   });

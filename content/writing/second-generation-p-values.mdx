@@ -21,20 +21,20 @@ status: published
 
 # Second-Generation p-Values
 
-<div className="not-prose my-8 grid gap-4 md:grid-cols-3">
-  <div className="rounded-lg border bg-card p-5">
-    <p className="text-sm font-semibold uppercase tracking-normal text-muted-foreground">Question</p>
-    <p className="mt-2 text-base leading-7">Is the estimated effect incompatible with effects that are null or too small to matter?</p>
-  </div>
-  <div className="rounded-lg border bg-card p-5">
-    <p className="text-sm font-semibold uppercase tracking-normal text-muted-foreground">Object</p>
-    <p className="mt-2 text-base leading-7">An interval estimate compared with an interval null, not a test statistic compared with a point null.</p>
-  </div>
-  <div className="rounded-lg border bg-card p-5">
-    <p className="text-sm font-semibold uppercase tracking-normal text-muted-foreground">Output</p>
-    <p className="mt-2 text-base leading-7">p_delta equals 0, 1, or a fractional inconclusive value, with a delta gap when intervals are separated.</p>
-  </div>
-</div>
+<SideBySide>
+  <SideBySide.Panel title="Question">
+    Is the estimated effect incompatible with effects that are null or too small
+    to matter?
+  </SideBySide.Panel>
+  <SideBySide.Panel title="Object">
+    An interval estimate compared with an interval null, not a test statistic
+    compared with a point null.
+  </SideBySide.Panel>
+  <SideBySide.Panel title="Output">
+    $p_\delta$ equals $0$, $1$, or a fractional inconclusive value, with a delta gap
+    when intervals are separated.
+  </SideBySide.Panel>
+</SideBySide>
 
 Second-generation p-values are an attempt to make a frequentist summary answer a better scientific question. A traditional p-value asks how surprising a test statistic would be if a point null hypothesis were exactly true. The second-generation p-value asks how much of an interval estimate overlaps a scientifically meaningful null region.
 

@@ -1,6 +1,14 @@
 import Link from "next/link";
 import Image from "next/image";
 import {
+  Children,
+  cloneElement,
+  isValidElement,
+  type CSSProperties,
+  type ReactElement,
+  type ReactNode,
+} from "react";
+import {
   AlertTriangleIcon,
   ArrowUpRightIcon,
   BeakerIcon,
@@ -17,7 +25,7 @@ export function Callout({
 }: {
   title: string;
   type?: "info" | "warning";
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const Icon = type === "warning" ? AlertTriangleIcon : InfoIcon;
 
@@ -59,14 +67,59 @@ export function ProjectMetric({
   );
 }
 
+type SideBySideRootProps = {
+  children: ReactNode;
+  className?: string;
+  columns?: number;
+};
+
+type SideBySidePanelProps = {
+  title?: string;
+  imageSrc?: string;
+  imageAlt?: string;
+  imageSizes?: string;
+  className?: string;
+  contentClassName?: string;
+  children: ReactNode;
+  _columnCount?: number;
+};
+
+type SideBySideStyle = CSSProperties & {
+  "--side-by-side-columns": number;
+};
+
 type SideBySideComponent = {
-  ({ children }: { children: React.ReactNode }): React.ReactElement;
+  (props: SideBySideRootProps): ReactElement;
   Panel: typeof SideBySidePanel;
 };
 
-function SideBySideRoot({ children }: { children: React.ReactNode }) {
+function SideBySideRoot({
+  children,
+  className,
+  columns,
+}: SideBySideRootProps) {
+  const childNodes = Children.toArray(children);
+  const inferredColumns = childNodes.filter(isValidElement).length;
+  const columnCount = normalizeColumnCount(columns ?? inferredColumns);
+  const style: SideBySideStyle = {
+    "--side-by-side-columns": columnCount,
+  };
+  const panels = childNodes.map((child) =>
+    isValidElement<SideBySidePanelProps>(child) && child.type === SideBySidePanel
+      ? cloneElement(child, { _columnCount: columnCount })
+      : child,
+  );
+
   return (
-    <div className="not-prose my-8 grid gap-4 md:grid-cols-2">{children}</div>
+    <div
+      className={cn(
+        "not-prose my-8 grid gap-4 md:grid-cols-[repeat(var(--side-by-side-columns),minmax(0,1fr))]",
+        className,
+      )}
+      style={style}
+    >
+      {panels}
+    </div>
   );
 }
 
@@ -74,36 +127,64 @@ function SideBySidePanel({
   title,
   imageSrc,
   imageAlt,
+  imageSizes,
+  className,
+  contentClassName,
   children,
-}: {
-  title?: string;
-  imageSrc?: string;
-  imageAlt?: string;
-  children: React.ReactNode;
-}) {
+  _columnCount = 1,
+}: SideBySidePanelProps) {
   return (
-    <Card className="h-full overflow-hidden border-border/80 bg-card/95">
+    <Card className={cn("h-full border-border/80 bg-card/95", className)}>
       {imageSrc ? (
         <div className="relative aspect-[16/9] bg-muted">
           <Image
             src={imageSrc}
             alt={imageAlt ?? ""}
             fill
-            sizes="(min-width: 768px) 50vw, 100vw"
+            sizes={imageSizes ?? getPanelImageSizes(_columnCount)}
             className="object-cover"
           />
         </div>
       ) : null}
       {title ? (
-        <CardHeader>
-          <CardTitle className="text-lg tracking-normal">{title}</CardTitle>
+        <CardHeader className="px-5">
+          <CardTitle className="text-sm font-semibold uppercase tracking-normal text-muted-foreground">
+            {title}
+          </CardTitle>
         </CardHeader>
       ) : null}
-      <CardContent className="flex flex-col gap-4 text-sm leading-7 text-muted-foreground [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_code]:rounded-md [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-foreground [&_ol]:flex [&_ol]:list-decimal [&_ol]:flex-col [&_ol]:gap-2 [&_ol]:pl-5 [&_strong]:text-foreground [&_ul]:flex [&_ul]:list-disc [&_ul]:flex-col [&_ul]:gap-2 [&_ul]:pl-5">
+      <CardContent
+        className={cn(
+          "flex flex-col gap-4 px-5 text-base leading-7 text-muted-foreground [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_code]:rounded-md [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-foreground [&_ol]:flex [&_ol]:list-decimal [&_ol]:flex-col [&_ol]:gap-2 [&_ol]:pl-5 [&_strong]:text-foreground [&_ul]:flex [&_ul]:list-disc [&_ul]:flex-col [&_ul]:gap-2 [&_ul]:pl-5",
+          contentClassName,
+        )}
+      >
         {children}
       </CardContent>
     </Card>
   );
+}
+
+function normalizeColumnCount(columns: number) {
+  if (!Number.isFinite(columns)) {
+    return 1;
+  }
+
+  return Math.max(1, Math.floor(columns));
+}
+
+function getPanelImageSizes(columnCount: number) {
+  if (columnCount <= 1) {
+    return "(min-width: 768px) 768px, 100vw";
+  }
+
+  if (columnCount === 2) {
+    return "(min-width: 768px) 50vw, 100vw";
+  }
+
+  return `(min-width: 1024px) ${Math.ceil(
+    100 / columnCount,
+  )}vw, (min-width: 768px) 50vw, 100vw`;
 }
 
 export const SideBySide = SideBySideRoot as SideBySideComponent;
@@ -116,7 +197,7 @@ export function LinkCard({
 }: {
   title: string;
   href: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <Link
