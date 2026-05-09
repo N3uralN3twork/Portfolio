@@ -5,6 +5,7 @@ description = "Python tooling dependencies for the portfolio workspace."
 requires-python = ">=3.10"
 dependencies = [
     "semble[mcp]",
+    "ty>=0.0.34",
 ]
 
 [tool.uv]
