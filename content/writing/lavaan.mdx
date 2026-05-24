@@ -334,6 +334,342 @@ latency-only benchmark can be noisy; a latency improvement paired with lower
 allocation across many scenarios is stronger evidence that the internal work
 changed in the intended direction.
 
+## Code Receipts: Before and After
+
+The benchmark numbers above are the headline, but the PR is easier to
+understand when the code changes are visible. These examples compare
+`master` to `feature/fast-v6` and focus on changes inside `lavaan/R/` that
+most clearly explain the latency reductions.
+
+### 1. Baseline Fit: Try a Direct Independence Payload First
+
+On `master`, the baseline step always reached for the general independence
+model fit when baseline tests were requested:
+
+```r
+current_verbose <- lav_verbose()
+lav_verbose(FALSE)
+fit_indep <- try(lav_object_independence(
+  object = NULL,
+  lavsamplestats = lavsamplestats,
+  lavdata = lavdata,
+  lavcache = lavcache,
+  lavoptions = lavoptions,
+  lavpartable = lavpartable,
+  lavh1 = lavh1
+), silent = TRUE)
+lav_verbose(current_verbose)
+
+lavbaseline <- list(
+  partable = fit_indep@ParTable,
+  test = fit_indep@test
+)
+```
+
+On `feature/fast-v6`, `lav_lavaan_step15_baseline()` first attempts a direct
+fast payload and only falls back to `lav_object_independence()` when the model
+shape is unsupported:
+
+```r
+lavbaseline <- lav_lavaan_step15_baseline_fast(
+  lavoptions = lavoptions,
+  lavsamplestats = lavsamplestats,
+  lavdata = lavdata,
+  lavpartable = lavpartable,
+  lavh1 = lavh1
+)
+if (!is.null(lavbaseline)) {
+  if (lav_verbose()) {
+    cat(" done.\n")
+  }
+  return(lavbaseline)
+}
+
+fit_indep <- try(lav_object_independence(...), silent = TRUE)
+```
+
+The new helper checks conservative ML eligibility, builds the independence
+partable from sample moments, and computes the standard chi-square payload
+directly. This is a good showcase because fit indices touch baseline models
+even when the user only asked for the main SEM fit. In the matched workbooks,
+`cfa_holzinger_ml` improved from `44.45 ms` to `10.02 ms` median latency
+(`4.44x`), while `postfit_political_democracy_sem_ml` improved from
+`153.10 ms` to `67.22 ms` (`2.28x`).
+
+### 2. Simple CFA Setup: Skip General Partable Machinery
+
+On `master`, observed-name discovery repeatedly called the general
+`lav_partable_vnames()` path for each name family:
+
+```r
+attr(flat_model, "vnames") <- lav_partable_vnames(flat_model, type = "*")
+ov_names <- unique(unlist(lav_partable_vnames(flat_model, type = "ov")))
+ov_names_y <- unique(unlist(lav_partable_vnames(
+  flat_model, type = "ov.nox"
+)))
+ov_names_x <- unique(unlist(lav_partable_vnames(flat_model, type = "ov.x")))
+lv_names <- unique(unlist(lav_partable_vnames(flat_model, type = "lv")))
+```
+
+On `feature/fast-v6`, simple single-group CFA models get a narrow fast path,
+and the fallback computes the full vnames cache once before slicing it:
+
+```r
+fast <- lav_lavaan_step01_ovnames_group_fast(flat_model, ngroups)
+if (!is.null(fast)) {
+  return(fast)
+}
+
+flat_vnames <- lav_partable_vnames(flat_model, type = "*")
+attr(flat_model, "vnames") <- flat_vnames
+ov_names <- lav_lavaan_step01_ovnames_from_vnames(flat_vnames, "ov")
+ov_names_y <- lav_lavaan_step01_ovnames_from_vnames(flat_vnames, "ov.nox")
+ov_names_x <- lav_lavaan_step01_ovnames_from_vnames(flat_vnames, "ov.x")
+lv_names <- lav_lavaan_step01_ovnames_from_vnames(flat_vnames, "lv")
+```
+
+The same idea appears in step 4, where `lav_lavaan_step04_partable_cfa_fast()`
+constructs a standard CFA partable directly and returns before the general
+completion path:
+
+```r
+lavpartable <- lav_lavaan_step04_partable_cfa_fast(
+  slot_par_table = slot_par_table,
+  flat_model = flat_model,
+  lavoptions = lavoptions,
+  lavdata = lavdata,
+  constraints = constraints
+)
+if (!is.null(lavpartable)) {
+  return(list(
+    lavoptions = lavoptions,
+    lavpartable = lavpartable
+  ))
+}
+```
+
+This removes repeated metadata scans from a very common modeling shape. The
+benchmark evidence lines up with that target: `sample_cov_holzinger_ml` moved
+from `43.06 ms` to `12.14 ms` median latency (`3.55x`), and
+`synthetic_large_cfa_ml` moved from `80.27 ms` to `29.49 ms` (`2.72x`) while
+allocation fell from `54.96 MB` to `28.83 MB`.
+
+### 3. Implied Moments: Compute Related Quantities Together
+
+On `master`, `lav_model_implied()` requested each model-implied quantity
+through a separate public helper:
+
+```r
+sigma_hat <- lav_model_sigma(
+  lavmodel = lavmodel, glist = glist,
+  delta = delta
+)
+
+if (lavmodel@meanstructure) {
+  mu_hat <- lav_model_mu(lavmodel = lavmodel, glist = glist)
+}
+if (lavmodel@conditional.x) {
+  slopes <- lav_model_pi(lavmodel = lavmodel, glist = glist)
+}
+if (lavmodel@categorical) {
+  th <- lav_model_th(lavmodel = lavmodel, glist = glist)
+}
+```
+
+On `feature/fast-v6`, one request advertises exactly which pieces are needed
+and shares the representation-level work:
+
+```r
+implied_fast <- lav_model_implied_fast(
+  lavmodel = lavmodel,
+  glist = glist,
+  need_sigma = TRUE,
+  need_mu = lavmodel@meanstructure,
+  need_pi = lavmodel@conditional.x,
+  need_th = lavmodel@categorical,
+  delta = delta
+)
+
+sigma_hat <- implied_fast$sigma
+mu_hat <- implied_fast$mu
+slopes <- implied_fast$pi
+th <- implied_fast$th
+```
+
+Inside the LISREL fast helper, the expensive shared product is computed once:
+
+```r
+need_lambda_ib_inv <- (need_sigma && is.null(mm_wmat)) ||
+  need_mu || need_th || need_pi
+if (need_lambda_ib_inv) {
+  if (is.null(mm_beta)) {
+    lambda__ib_inv <- mm_lambda
+  } else {
+    ib_inv <- lav_lisrel_ibinv(mlist = mlist)
+    lambda__ib_inv <- mm_lambda %*% ib_inv
+  }
+}
+```
+
+This helps ordinary ML fits because objective, gradient, bootstrap, PML, and
+simulation paths all ask for overlapping implied quantities. The broad effect
+shows up in nontrivial SEM scenarios: `mediation_path_sem_ml` improved from
+`41.78 ms` to `10.83 ms` (`3.86x`), `growth_demo_ml` improved from
+`65.55 ms` to `17.31 ms` (`3.79x`), and `conditional_x_ml` improved from
+`104.53 ms` to `53.00 ms` (`1.97x`).
+
+### 4. Gradient Delta Work: Build Shared Setup Once
+
+On `master`, `lav_model_gradient_dd()` rebuilt Delta plumbing separately for
+each target matrix:
+
+```r
+delta_lambda <- lav_model_ddelta_dx(
+  lavmodel, glist = g_list, target = "lambda"
+)[[group]]
+delta_tau <- lav_model_ddelta_dx(
+  lavmodel, glist = g_list, target = "tau"
+)[[group]]
+delta_nu <- lav_model_ddelta_dx(
+  lavmodel, glist = g_list, target = "nu"
+)[[group]]
+delta_theta <- lav_model_ddelta_dx(
+  lavmodel, glist = g_list, target = "theta"
+)[[group]]
+```
+
+On `feature/fast-v6`, the repeated setup is factored out and multiple Delta
+targets are produced from the same prepared indices:
+
+```r
+deltas <- lav_model_ddelta_dx_many(
+  lavmodel = lavmodel,
+  glist = g_list,
+  targets = c(
+    "lambda", "tau", "nu", "theta",
+    "beta", "psi", "alpha", "gamma"
+  ),
+  group = group
+)
+delta_lambda <- deltas$lambda
+delta_tau <- deltas$tau
+delta_nu <- deltas$nu
+delta_theta <- deltas$theta
+```
+
+The lower-level setup now caches model-matrix indices, free-parameter indices,
+threshold indices, and the active equality-constraint shape once per group.
+That is especially relevant for gradient-heavy categorical and post-fit work.
+The WLSMV scenarios still remain heavier than simple ML, but they improved:
+`ordinal_holzinger_wlsmv` fell from `134.91 ms` to `81.92 ms` (`1.65x`), and
+`ordinal_latent_regression_wlsmv` fell from `239.02 ms` to `156.73 ms`
+(`1.53x`).
+
+### 5. FIML Missing Patterns: Prepare Pattern Metadata Once
+
+On `master`, missing-pattern likelihood code repeatedly reached into each
+pattern object and recomputed simple indexes:
+
+```r
+pat_n <- length(yp)
+p_1 <- length(yp[[1]]$var.idx)
+
+for (p in seq_len(pat_n)) {
+  var_idx <- yp[[p]]$var.idx
+  na_idx <- which(!var_idx)
+
+  p_log_2pi[p] <- sum(var_idx) * log_2pi * yp[[p]]$freq
+  tt <- yp[[p]]$SY + tcrossprod(yp[[p]]$MY - mu[var_idx])
+  dist_1[p] <- sum(sigma_inv * tt) * yp[[p]]$freq
+}
+```
+
+On `feature/fast-v6`, sample statistics carry prepared missing-pattern
+metadata, and the likelihood avoids forming `tcrossprod()` only to multiply it
+by the inverse:
+
+```r
+yp_prepared <- lav_mvnorm_missing_prepare_samplestats(yp)
+pat_n <- yp_prepared$pat_n
+
+for (p in seq_len(pat_n)) {
+  var_idx <- yp_prepared$var.idx[[p]]
+  na_idx <- yp_prepared$na.idx[[p]]
+  freq <- yp_prepared$freq[p]
+
+  p_log_2pi[p] <- yp_prepared$nvar[p] * log_2pi * freq
+  diff_1 <- yp_prepared$MY[[p]] - mu[var_idx]
+  dist_1[p] <- (
+    sum(sigma_inv * yp_prepared$SY[[p]]) +
+      sum(as.numeric(crossprod(diff_1, sigma_inv)) * diff_1)
+  ) * freq
+}
+```
+
+The preparation is attached when the missing sample statistics are built:
+
+```r
+attr(yp, "prepared") <- lav_mvnorm_missing_prepare_samplestats(yp)
+```
+
+This is a clean FIML optimization because it does not change the likelihood; it
+changes how much list lookup, index reconstruction, and temporary matrix work
+is done per pattern. The FIML scenarios improved materially:
+`fiml_holzinger_ml` moved from `412.16 ms` to `200.24 ms` median latency
+(`2.06x`) with allocation falling from `42.92 MB` to `30.55 MB`, and
+`fiml_political_democracy_sem_ml` moved from `333.74 ms` to `163.24 ms`
+(`2.04x`) with allocation falling from `50.93 MB` to `37.14 MB`.
+
+### 6. Two-Level Likelihood: Accumulate Derivatives Directly
+
+On `master`, the two-level derivative code allocated per-cluster matrices and
+then summed them at the end:
+
+```r
+g_muy <- matrix(0, ncluster_sizes, length(mu_y))
+g_sigma_w_1 <- matrix(0, ncluster_sizes, length(lav_matrix_vech(sigma_w_1)))
+g_sigma_b_1 <- matrix(0, ncluster_sizes, length(lav_matrix_vech(sigma_b_1)))
+
+for (clz in seq_len(ncluster_sizes)) {
+  g_muy[clz, ] <- -2 * nj * as.numeric(yc %*% sigma_j_inv)
+  g_sigma_w_1[clz, ] <- lav_matrix_vech(tmp)
+  g_sigma_b_1[clz, ] <- lav_matrix_vech(tmp)
+}
+
+d_mu_y <- colSums(g_muy * cluster_size_ns)
+d_sigma_w1 <- lav_matrix_vech_reverse(colSums(
+  g_sigma_w_1 * cluster_size_ns
+))
+```
+
+On `feature/fast-v6`, the same quantities are accumulated directly into
+weighted derivative vectors:
+
+```r
+d_mu_y <- numeric(length(mu_y))
+d_sigma_w1_vech <- numeric(length(lav_matrix_vech(sigma_w_1)))
+d_sigma_b_vech <- numeric(length(lav_matrix_vech(sigma_b_1)))
+
+for (clz in seq_len(ncluster_sizes)) {
+  cluster_weight <- cluster_size_ns[clz]
+
+  d_mu_y <- d_mu_y +
+    cluster_weight * (-2 * nj * as.numeric(yc %*% sigma_j_inv))
+  d_sigma_w1_vech <- d_sigma_w1_vech +
+    cluster_weight * lav_matrix_vech(tmp)
+  d_sigma_b_vech <- d_sigma_b_vech +
+    cluster_weight * lav_matrix_vech(tmp)
+}
+
+d_sigma_w1 <- lav_matrix_vech_reverse(d_sigma_w1_vech)
+d_sigma_b <- lav_matrix_vech_reverse(d_sigma_b_vech)
+```
+
+This is the most literal allocation reduction in the set: the code no longer
+needs a cluster-by-parameter matrix just to immediately collapse it. The
+two-level scenario improved from `342.44 ms` to `220.71 ms` median latency
+(`1.55x`), and allocation fell from `28.30 MB` to `24.26 MB`.
+
 ## Full Matched Scenario Table
 
 | Scenario | Baseline median | V6 median | Speedup | Median reduction | Allocation reduction |
