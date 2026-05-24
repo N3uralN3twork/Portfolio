@@ -1,5 +1,5 @@
 ---
-title: "Fast Paths in lavaan: A PR-Level Performance Study"
+title: "Fast Paths in lavaan: A Performance Study"
 summary: "A research-style account of a lavaan performance PR, using matched profiling runs to connect internal fast paths with measured latency and allocation reductions."
 date: "2026-05-24"
 cardImg: /images/lavaan/SEM-Diagram.png
@@ -28,7 +28,7 @@ construction, cached partable metadata, unified model-implied moment
 calculation, cheaper matrix operations, lower-allocation missing-data
 likelihood code, and more efficient MIIV/PML linear algebra.
 
-I evaluated the code from the PR against the `master` branch using a benchmark suite of 25 diverse SEM scenarios.
+I evaluated the code from the PR against the `master` branch using a benchmark suite of $25$ diverse scenarios.
 
 | Run | Branch | lavaan version | Scenarios | Timed iterations | Timing context |
 | --- | --- | --- | ---: | ---: | --- |
@@ -37,7 +37,7 @@ I evaluated the code from the PR against the `master` branch using a benchmark s
 
 Across the 25 matched scenarios, the PR _reduced_ aggregate mean latency by
 $56.0\%$, aggregate median latency by $58.6\%$, and aggregate p95 latency by $48.7\%$.
-All matched scenarios improved on median latency. Among the 23 scenarios with
+All matched scenarios improved on median latency. Among the $23$ scenarios with
 allocation measurements in both runs, aggregate allocation fell by $29.9\%$.
 
 ## Research Question
@@ -229,8 +229,8 @@ synthetic workloads.
 | Allocated bytes | 15.87 MB | 11.13 MB | 29.9% | 39.0% |
 
 The strongest median-latency improvements were concentrated in common ML and
-SEM workloads where baseline construction, partable setup, implied moments, and
-gradient work are repeatedly exercised.
+SEM workloads where baseline construction, parameter table setup, implied moments, and
+gradient work are repeatedly done.
 
 <figure>
   <svg viewBox="0 0 860 430" role="img" aria-labelledby="scenario-speedups-title" width="100%" height="430">
@@ -283,9 +283,9 @@ gradient work are repeatedly exercised.
 | `bifactor_synthetic_battery_ml` | 47.31 ms | 14.03 ms | 3.37x | 70.3% |
 | `parallel_process_growth_ml` | 55.41 ms | 16.73 ms | 3.31x | 69.8% |
 
-There were no median-latency regressions in the matched scenario set. The
+There were $0$ median-latency _regressions_ in the matched scenario set. The
 smallest median-latency improvement was still material: the ordinal latent
-regression WLSMV scenario improved from 239.02 ms to 156.73 ms, a 34.4%
+regression WLSMV scenario improved from $239.02$ ms to $156.73$ ms, a $34.4\%$
 reduction.
 
 ## Mechanism
@@ -295,8 +295,8 @@ both runs, the highest diagnostic scores remained around the same families of
 work: baseline model construction, gradient calculation, sample statistics, and
 optimization. But the latencies associated with those scenarios fell.
 
-For example, `fiml_holzinger_ml` had a baseline median of 412.16 ms and a V6
-median of 200.24 ms. `twolevel_demo_ml` moved from 342.44 ms to 220.71 ms. The
+For example, `fiml_holzinger_ml` had a baseline median of $412.16$ ms and a V6
+median of $200.24$ ms. `twolevel_demo_ml` moved from $342.44$ ms to $220.71$ ms. The
 PR did not erase these scenarios as bottlenecks, but it lowered their absolute
 cost. That is the signature of constant-factor engineering: the ranking of hard
 workloads can remain similar while every row gets cheaper.
@@ -315,7 +315,7 @@ repetition across several layers:
 | Allocate per-cluster derivative matrices before summing | Accumulate weighted derivatives directly. |
 
 This pattern is visible in allocation measurements. Among scenarios with
-allocation data in both runs, aggregate allocated bytes fell by 29.9%. The
+allocation data in both runs ($23$/$25$ scenarios), aggregate allocated bytes fell by $29.9\%$. The
 largest measured allocation reductions were:
 
 | Scenario | Baseline allocation | V6 allocation | Reduction |
@@ -366,7 +366,7 @@ changed in the intended direction.
 
 ## Threats to Validity
 
-The evidence is strong enough to support a PR-level performance claim, but it
+The evidence is strong enough to support a performance claim, but it
 has boundaries.
 
 First, this is a run-pair comparison on one environment. Both runs used R 4.6.0
@@ -392,14 +392,14 @@ from individual sampled call stacks.
 
 This PR is a good example of performance work that respects a mature statistical
 codebase. It does not replace lavaan's modeling language or statistical
-estimators. It changes the internal cost model: cache what the code already
+estimators, which means the public API remains unchanged. It changes the internal cost model: cache what the code already
 knows, compute related implied quantities together, avoid dense intermediates,
 and reserve the fully general path for models that need it.
 
-The measured result is large. Across 25 matched scenarios, _median latency_ fell
-from an average of 146.13 ms to 60.44 ms, with no median-latency regressions in
+The measured result is large. Across $25$ matched scenarios, _median latency_ fell
+from an average of $146.13$ ms to $60.44$ ms, with no median-latency regressions in
 the matched suite. Allocation also moved in the right direction, falling by
-29.9% in aggregate across scenarios where both runs recorded allocation data.
+$29.9\%$ in aggregate across scenarios where both runs recorded allocation data.
 
 For SEM users, this should shows up as a nicer feedback loop: fits
 return sooner, bootstrap and post-fit workflows spend less time on repeated
