@@ -22,6 +22,7 @@ import {
   SgpvAppliedResultsPath,
   SgpvIntervalWorkbench,
 } from "@/components/mdx/sgpv-demos";
+import { Color } from "@/components/ui/colorText";
 import { parseMdxStyleString } from "@/lib/mdx-style";
 
 export const mdxComponents: MDXComponents = {
@@ -55,6 +56,7 @@ export const mdxComponents: MDXComponents = {
   LinkCard,
   ProjectMetric,
   SideBySide,
+  Color,
   BayesianABDemo,
   DotProductSimilarityDemo,
   LavaanSemDemo,

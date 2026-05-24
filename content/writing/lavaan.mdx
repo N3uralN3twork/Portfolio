@@ -16,6 +16,7 @@ readingTime: 18 min read
 type: writing
 status: published
 ---
+import { Color } from '../components/ui/colorText'
 
 ## Abstract
 
@@ -80,15 +81,15 @@ $$
 speedup_s = \frac{median_{baseline,s}}{median_{v6,s}}
 $$
 
-The aggregate reduction for a latency metric is computed from the sum of
+The <Color value="orange">aggregate reduction for a latency metric</Color> is computed from the sum of
 matched scenario latencies:
 
 $$
 reduction = \frac{\sum_s t_{baseline,s} - \sum_s t_{v6,s}}{\sum_s t_{baseline,s}}
 $$
 
-This is intentionally a benchmark comparison, not a proof that every individual
-code edit caused a specific share of the speedup.
+<Color value="red">This is intentionally a benchmark comparison, not a proof that every individual
+code edit caused a specific share of the speedup.</Color>
 
 ## Intervention
 
@@ -665,8 +666,8 @@ d_sigma_w1 <- lav_matrix_vech_reverse(d_sigma_w1_vech)
 d_sigma_b <- lav_matrix_vech_reverse(d_sigma_b_vech)
 ```
 
-This is the most literal allocation reduction in the set: the code no longer
-needs a cluster-by-parameter matrix just to immediately collapse it. The
+This is the most literal allocation reduction in the set: the code <Color value="orange">no longer needs</Color>
+a cluster-by-parameter matrix just to immediately collapse it. The
 two-level scenario improved from `342.44 ms` to `220.71 ms` median latency
 (`1.55x`), and allocation fell from `28.30 MB` to `24.26 MB`.
 
@@ -726,9 +727,9 @@ from individual sampled call stacks.
 
 ## Conclusion
 
-This PR is a good example of performance work that respects a mature statistical
-codebase. It does not replace lavaan's modeling language or statistical
-estimators, which means the public API remains unchanged. It changes the internal cost model: cache what the code already
+This is a good example of performance work that respects both a mature codebase and the future direction of `lavaan`.
+It does not replace lavaan's modeling language or statistical estimators, which means the public API remains unchanged.
+My work does change quite a bit of the internal structure: cache what the code already
 knows, compute related implied quantities together, avoid dense intermediates,
 and reserve the fully general path for models that need it.
 
@@ -742,3 +743,7 @@ return sooner, bootstrap and post-fit workflows spend less time on repeated
 internal work, and common model families benefit without asking the user to
 write different model syntax. For a PR, that is the sweet spot: the same
 interface, less waiting.
+
+
+
+

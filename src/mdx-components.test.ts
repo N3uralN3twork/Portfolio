@@ -141,6 +141,32 @@ describe("mdx component helpers", () => {
     expect((post.match(/<SideBySide>/g) ?? []).length).toBe(1);
   });
 
+  test("registers inline colored text for MDX posts", async () => {
+    const [registry, colorText, post] = await Promise.all([
+      readFile(path.join(process.cwd(), "src", "mdx-components.tsx"), "utf8"),
+      readFile(
+        path.join(
+          process.cwd(),
+          "src",
+          "components",
+          "ui",
+          "colorText.tsx",
+        ),
+        "utf8",
+      ),
+      readFile(
+        path.join(process.cwd(), "content", "writing", "lavaan.mdx"),
+        "utf8",
+      ),
+    ]);
+
+    expect(registry).toContain("Color");
+    expect(registry).toContain("@/components/ui/colorText");
+    expect(colorText).toContain("type ColorProps");
+    expect(colorText).toContain("style={{ color: value }}");
+    expect(post).toContain('<Color value="hotpink">pink text</Color>');
+  });
+
   test("registers the lavaan SEM Motion demo for MDX lab entries", async () => {
     const [registry, demo] = await Promise.all([
       readFile(path.join(process.cwd(), "src", "mdx-components.tsx"), "utf8"),
