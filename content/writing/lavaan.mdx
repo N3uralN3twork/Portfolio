@@ -1,0 +1,408 @@
+---
+title: "Fast Paths in lavaan: A PR-Level Performance Study"
+summary: "A research-style account of a lavaan performance PR, using matched profiling runs to connect internal fast paths with measured latency and allocation reductions."
+date: "2026-05-24"
+cardImg: /images/lavaan/SEM-Diagram.png
+bannerImg: /images/lavaan/SEM-Diagram.png
+tags:
+  - R
+  - lavaan
+  - Performance
+  - Structural Equation Modeling
+  - Benchmarking
+featured: true
+difficulty: hard
+readingTime: 18 min read
+type: writing
+status: published
+---
+
+## Abstract
+
+This post studies my PR
+[`N3uralN3twork/lavaan#4`](https://github.com/N3uralN3twork/lavaan/pull/4),
+`feature/fast-v6`, as a performance intervention in the `lavaan` structural
+equation modeling library. The largest change is not a single algorithmic
+replacement, but a set of coordinated fast paths: direct baseline-model
+construction, cached partable metadata, unified model-implied moment
+calculation, cheaper matrix operations, lower-allocation missing-data
+likelihood code, and more efficient MIIV/PML linear algebra.
+
+I evaluated the code from the PR against the `master` branch using a benchmark suite of 25 diverse SEM scenarios.
+
+| Run | Branch | lavaan version | Scenarios | Timed iterations | Timing context |
+| --- | --- | --- | ---: | ---: | --- |
+| `baseline` | `master` | `0.6.22.2653` | 25 | 1000 each | isolated authoritative |
+| `V6-Baseline` | `feature/fast-v6` | `0.6.22.2658` | 25 | 1000 each | isolated authoritative |
+
+Across the 25 matched scenarios, the PR _reduced_ aggregate mean latency by
+$56.0\%$, aggregate median latency by $58.6\%$, and aggregate p95 latency by $48.7\%$.
+All matched scenarios improved on median latency. Among the 23 scenarios with
+allocation measurements in both runs, aggregate allocation fell by $29.9\%$.
+
+## Research Question
+
+The practical question was:
+
+> Can a broad internal fast-path PR reduce routine `lavaan` fitting overhead
+> across diverse SEM scenarios without narrowing the public modeling surface?
+
+That question matters because SEM software spends much of its time in repeated
+bookkeeping: building parameter tables, deriving observed and latent variable
+names, producing model-implied covariance and mean structures, differentiating
+those implied quantities, and constructing baseline models for fit indices. If
+those operations allocate too much or recompute the same internal state, a
+user-facing model can feel slow even when the statistical work is modest.
+
+The PR attacks that cost by preserving the existing interface and changing the
+shape of internal work. It favors cached metadata, direct construction for
+common cases, fused calculations, and linear algebra helpers that avoid
+materializing large intermediate matrices.
+
+## Methods
+
+The evidence comes from the profiling artifacts in:
+
+```text
+FastLavaan\benchmark\runs\baseline
+FastLavaan\benchmark\runs\V6-Baseline
+```
+
+Each run contains a `profiling-summary.xlsx` workbook and a self-contained
+`transcript.html`. The benchmark harness used `callr`, ran each scenario in an
+isolated authoritative timing context, used $3$ orchestration workers, and
+measured 1000 timed iterations after $2$ warmup iterations per scenario.
+
+The analysis below compares only scenario labels present in both runs. For a
+scenario `s`, the median speedup is:
+
+$$
+speedup_s = \frac{median_{baseline,s}}{median_{v6,s}}
+$$
+
+The aggregate reduction for a latency metric is computed from the sum of
+matched scenario latencies:
+
+$$
+reduction = \frac{\sum_s t_{baseline,s} - \sum_s t_{v6,s}}{\sum_s t_{baseline,s}}
+$$
+
+This is intentionally a benchmark comparison, not a proof that every individual
+code edit caused a specific share of the speedup.
+
+## Intervention
+
+The PR changes can be read as six coordinated interventions.
+
+### 1. Baseline Models Stop Taking the Scenic Route
+
+The new file `R/lav_lavaan_baseline_utils.R` adds a direct path for standard ML
+independence baseline models. It validates whether the model is eligible,
+constructs the baseline partable from sample moments, computes the baseline
+objective from log determinants, and returns the standard chi-square test
+without forcing the full baseline model through the same expensive path as a
+general SEM.
+
+There are separate payload builders for simple single-group ML,
+conditional-`x` ML, and generated independence models. The key design is
+conservative: return `NULL` when the assumptions are not met, and let the
+existing lavaan machinery handle unsupported cases.
+
+### 2. Partables and Variable Names Become Cacheable Evidence
+
+Several changes reduce repeated scans over the parameter table:
+
+| Area | Change |
+| --- | --- |
+| Observed-variable discovery | `lav_lavaan_step01_ovnames_group_fast()` handles simple single-group CFA models directly. |
+| Partable construction | `lav_lavaan_step04_partable_cfa_fast()` constructs a common CFA partable without walking the full general machinery. |
+| Cached attributes | `lav_partable_set_cache()` now updates attributes in bulk, and `lav_partable_remove_cache()` keeps only the intended attributes. |
+| Block lookup | `lav_partable_block_values()` can reuse `block.values`. |
+| Name lookup | `lav_partable_vnames()` can serve cached block, group, and level queries. |
+| Model setup | `lav_model()` detects already-complete cached partables and avoids redundant completion work. |
+
+This matters because variable-name and partable operations are classic
+constant-factor costs. They are individually small, but repeated in almost
+every model construction, baseline construction, post-check, and downstream
+inspection path.
+
+### 3. Implied Moments Are Computed Once, Then Shared
+
+Before this PR, many callers asked separately for model-implied covariance
+matrices, means, thresholds, and slopes. The PR introduces
+`lav_model_implied_fast()` and state-aware use of the same idea throughout the
+objective, gradient, bootstrap, simulation, and PML paths.
+
+The LISREL and RAM representations gained specialized helpers:
+
+| Representation | New fast helper | Purpose |
+| --- | --- | --- |
+| LISREL | `lav_lisrel_implied_fast()` | Computes requested `sigma`, `mu`, thresholds, and slopes while reusing shared matrix products. |
+| LISREL | `lav_lisrel_vy_diag()` | Computes only the observed variance diagonal when the full covariance is unnecessary. |
+| LISREL | `lav_lisrel_beta_dag_order()` | Detects DAG orderings that make `(I - BETA)^-1` cheaper. |
+| RAM | `lav_ram_implied_fast()` | Computes requested observed covariance and mean quantities with one inverse. |
+| RAM | `lav_ram_sigmahat_diag()` | Computes covariance diagonals without constructing the whole observed covariance. |
+
+The same fast implied-moment path is then used in bootstrap transformations,
+old simulation code, pairwise likelihood ratio testing, objective evaluation,
+and gradient evaluation.
+
+### 4. Matrix Work Is Rewritten Around the Shape Actually Needed
+
+The PR adds small matrix helpers that show up repeatedly in hot paths:
+
+| Helper | Why it matters |
+| --- | --- |
+| `lav_matrix_diag_prepost()` | Replaces explicit `diag(d) %*% A %*% diag(d)` construction. |
+| `lav_matrix_rowcol_idx()` | Builds matrix-vector indices directly from row, column, and value triples. |
+| `lav_matrix_symmetric_inverse_chol_first()` | Attempts Cholesky inversion before falling back to the existing symmetric inverse machinery. |
+| `lav_matrix_delta_A_delta()` | Names and centralizes the `Delta' A Delta` information-matrix product. |
+
+These are modest individually, but they remove unnecessary dense diagonal
+matrices, repeated index reconstruction, and general-purpose inverse calls in
+places where the matrix shape is already known.
+
+### 5. Gradients, Missing Data, and Two-Level Likelihoods Allocate Less
+
+The gradient path now uses cached model-matrix group indices through the new
+`mm.idx` slot on `lavModel`. It also assembles free-parameter gradients more
+directly, caches conditional-`x` sample quantities, and factors
+`lav_model_ddelta_dx()` into setup, matrix, group, and many-target helpers.
+
+Missing-data likelihood code now prepares pattern metadata once through
+`lav_mvnorm_missing_prepare_samplestats()` and stores that prepared object on
+sample statistics. Pattern likelihoods and derivatives reuse prepared indices,
+frequencies, means, and covariance summaries. The two-level multivariate normal
+derivative path similarly accumulates weighted derivative vectors directly
+instead of first allocating per-cluster derivative matrices and summing them
+afterward.
+
+### 6. MIIV, PML, and Utility Paths Avoid General Work
+
+The MIIV utilities replace repeated `solve()` calls and full duplication-matrix
+products with Cholesky solves, `chol2inv(chol(...))`, vech weights, and a helper
+that applies WLS weights as an operation rather than materializing the whole
+Kronecker-derived matrix. PML code now requests `sigma`, `mu`, and thresholds
+from `lav_model_implied_fast()` in one pass.
+
+Smaller changes follow the same pattern: `lav_snake_case()` uses a cached map
+and avoids regex work when names are already simple, option normalization uses
+`chartr()`, FMG test detection uses direct prefix checks for scalar input,
+version lookup is cached by `lav_version()`, and correlation checks avoid
+pairwise-complete handling when the numeric data contain no missing values.
+
+## Results
+
+The headline result is not confined to one scenario. The matched suite improved
+across simple CFA, mediation, growth, multigroup, FIML, ordinal, two-level, and
+synthetic workloads.
+
+<figure>
+  <svg viewBox="0 0 760 300" role="img" aria-labelledby="aggregate-results-title" width="100%" height="300">
+    <title id="aggregate-results-title">Aggregate benchmark reductions for the feature branch compared with master</title>
+    <text x="20" y="32" fontSize="18" fontWeight="700" fill="#172033">Aggregate reductions across matched scenarios</text>
+    <text x="20" y="56" fontSize="12" fill="#64748b">Latency uses 25 matched scenarios; allocation uses the 23 scenarios with measurements in both runs.</text>
+    <line x1="220" y1="86" x2="720" y2="86" stroke="#d6dbe7" strokeWidth="1" />
+    <line x1="220" y1="136" x2="720" y2="136" stroke="#d6dbe7" strokeWidth="1" />
+    <line x1="220" y1="186" x2="720" y2="186" stroke="#d6dbe7" strokeWidth="1" />
+    <line x1="220" y1="236" x2="720" y2="236" stroke="#d6dbe7" strokeWidth="1" />
+    <text x="20" y="91" fontSize="13" fill="#172033">Mean latency</text>
+    <text x="20" y="141" fontSize="13" fill="#172033">Median latency</text>
+    <text x="20" y="191" fontSize="13" fill="#172033">p95 latency</text>
+    <text x="20" y="241" fontSize="13" fill="#172033">Allocated bytes</text>
+    <rect x="220" y="72" width="280" height="24" rx="4" fill="#2563eb" />
+    <rect x="220" y="122" width="293" height="24" rx="4" fill="#2563eb" />
+    <rect x="220" y="172" width="243" height="24" rx="4" fill="#2563eb" />
+    <rect x="220" y="222" width="150" height="24" rx="4" fill="#ea580c" />
+    <text x="512" y="90" fontSize="13" fontWeight="700" fill="#172033">56.0%</text>
+    <text x="525" y="140" fontSize="13" fontWeight="700" fill="#172033">58.6%</text>
+    <text x="475" y="190" fontSize="13" fontWeight="700" fill="#172033">48.7%</text>
+    <text x="382" y="240" fontSize="13" fontWeight="700" fill="#172033">29.9%</text>
+  </svg>
+</figure>
+
+| Metric | Baseline average | V6 average | Aggregate reduction | Median per-scenario reduction |
+| --- | ---: | ---: | ---: | ---: |
+| Mean latency | 151.75 ms | 66.74 ms | 56.0% | 63.2% |
+| Median latency | 146.13 ms | 60.44 ms | 58.6% | 66.5% |
+| p95 latency | 196.27 ms | 100.78 ms | 48.7% | 53.5% |
+| Allocated bytes | 15.87 MB | 11.13 MB | 29.9% | 39.0% |
+
+The strongest median-latency improvements were concentrated in common ML and
+SEM workloads where baseline construction, partable setup, implied moments, and
+gradient work are repeatedly exercised.
+
+<figure>
+  <svg viewBox="0 0 860 430" role="img" aria-labelledby="scenario-speedups-title" width="100%" height="430">
+    <title id="scenario-speedups-title">Top scenario median speedups for feature fast v6 versus master</title>
+    <text x="20" y="32" fontSize="18" fontWeight="700" fill="#172033">Top median-latency speedups</text>
+    <text x="20" y="56" fontSize="12" fill="#64748b">Speedup is baseline median divided by V6 median.</text>
+    <text x="20" y="91" fontSize="12" fill="#172033">cfa_holzinger_ml</text>
+    <rect x="250" y="76" width="444" height="20" rx="4" fill="#2563eb" />
+    <text x="706" y="91" fontSize="12" fontWeight="700" fill="#172033">4.44x</text>
+    <text x="20" y="126" fontSize="12" fill="#172033">bootstrap_mediation_path_sem_ml</text>
+    <rect x="250" y="111" width="400" height="20" rx="4" fill="#2563eb" />
+    <text x="662" y="126" fontSize="12" fontWeight="700" fill="#172033">4.00x</text>
+    <text x="20" y="161" fontSize="12" fill="#172033">mediation_path_sem_ml</text>
+    <rect x="250" y="146" width="386" height="20" rx="4" fill="#2563eb" />
+    <text x="648" y="161" fontSize="12" fontWeight="700" fill="#172033">3.86x</text>
+    <text x="20" y="196" fontSize="12" fill="#172033">growth_demo_ml</text>
+    <rect x="250" y="181" width="379" height="20" rx="4" fill="#2563eb" />
+    <text x="641" y="196" fontSize="12" fontWeight="700" fill="#172033">3.79x</text>
+    <text x="20" y="231" fontSize="12" fill="#172033">sample_cov_holzinger_ml</text>
+    <rect x="250" y="216" width="355" height="20" rx="4" fill="#2563eb" />
+    <text x="617" y="231" fontSize="12" fontWeight="700" fill="#172033">3.55x</text>
+    <text x="20" y="266" fontSize="12" fill="#172033">ri_clpm_synthetic_panel_ml</text>
+    <rect x="250" y="251" width="351" height="20" rx="4" fill="#2563eb" />
+    <text x="613" y="266" fontSize="12" fontWeight="700" fill="#172033">3.51x</text>
+    <text x="20" y="301" fontSize="12" fill="#172033">piecewise_growth_synthetic_ml</text>
+    <rect x="250" y="286" width="342" height="20" rx="4" fill="#2563eb" />
+    <text x="604" y="301" fontSize="12" fontWeight="700" fill="#172033">3.42x</text>
+    <text x="20" y="336" fontSize="12" fill="#172033">multigroup_holzinger_loadings</text>
+    <rect x="250" y="321" width="337" height="20" rx="4" fill="#2563eb" />
+    <text x="599" y="336" fontSize="12" fontWeight="700" fill="#172033">3.37x</text>
+    <text x="20" y="371" fontSize="12" fill="#172033">bifactor_synthetic_battery_ml</text>
+    <rect x="250" y="356" width="337" height="20" rx="4" fill="#2563eb" />
+    <text x="599" y="371" fontSize="12" fontWeight="700" fill="#172033">3.37x</text>
+    <text x="20" y="406" fontSize="12" fill="#172033">parallel_process_growth_ml</text>
+    <rect x="250" y="391" width="331" height="20" rx="4" fill="#2563eb" />
+    <text x="593" y="406" fontSize="12" fontWeight="700" fill="#172033">3.31x</text>
+  </svg>
+</figure>
+
+| Scenario | Baseline median | V6 median | Speedup | Median reduction |
+| --- | ---: | ---: | ---: | ---: |
+| `cfa_holzinger_ml` | 44.45 ms | 10.02 ms | 4.44x | 77.5% |
+| `bootstrap_mediation_path_sem_ml` | 685.90 ms | 171.28 ms | 4.00x | 75.0% |
+| `mediation_path_sem_ml` | 41.78 ms | 10.83 ms | 3.86x | 74.1% |
+| `growth_demo_ml` | 65.55 ms | 17.31 ms | 3.79x | 73.6% |
+| `sample_cov_holzinger_ml` | 43.06 ms | 12.14 ms | 3.55x | 71.8% |
+| `ri_clpm_synthetic_panel_ml` | 75.12 ms | 21.38 ms | 3.51x | 71.5% |
+| `piecewise_growth_synthetic_ml` | 63.97 ms | 18.72 ms | 3.42x | 70.7% |
+| `multigroup_holzinger_loadings` | 92.27 ms | 27.35 ms | 3.37x | 70.4% |
+| `bifactor_synthetic_battery_ml` | 47.31 ms | 14.03 ms | 3.37x | 70.3% |
+| `parallel_process_growth_ml` | 55.41 ms | 16.73 ms | 3.31x | 69.8% |
+
+There were no median-latency regressions in the matched scenario set. The
+smallest median-latency improvement was still material: the ordinal latent
+regression WLSMV scenario improved from 239.02 ms to 156.73 ms, a 34.4%
+reduction.
+
+## Mechanism
+
+The profiler summaries help explain why a broad PR produced broad speedups. In
+both runs, the highest diagnostic scores remained around the same families of
+work: baseline model construction, gradient calculation, sample statistics, and
+optimization. But the latencies associated with those scenarios fell.
+
+For example, `fiml_holzinger_ml` had a baseline median of 412.16 ms and a V6
+median of 200.24 ms. `twolevel_demo_ml` moved from 342.44 ms to 220.71 ms. The
+PR did not erase these scenarios as bottlenecks, but it lowered their absolute
+cost. That is the signature of constant-factor engineering: the ranking of hard
+workloads can remain similar while every row gets cheaper.
+
+The best-supported mechanism is not one isolated change. The PR removes
+repetition across several layers:
+
+| Repeated work before the PR | PR-level response |
+| --- | --- |
+| Recompute partable-derived names and block metadata | Cache partable attributes and serve cached `lav_partable_vnames()` queries. |
+| Build simple CFA partables through the general path | Add simple CFA fast paths for observed names and partable construction. |
+| Ask separately for implied covariance, mean, thresholds, and slopes | Add `lav_model_implied_fast()` and representation-specific fused helpers. |
+| Construct dense diagonal matrices for pre/post scaling | Replace with elementwise `lav_matrix_diag_prepost()`. |
+| Materialize full WLS/duplication matrices in MIIV utilities | Apply vech weights and Cholesky solves directly. |
+| Re-scan missing-data pattern objects inside likelihood derivatives | Prepare pattern metadata once and reuse it. |
+| Allocate per-cluster derivative matrices before summing | Accumulate weighted derivatives directly. |
+
+This pattern is visible in allocation measurements. Among scenarios with
+allocation data in both runs, aggregate allocated bytes fell by 29.9%. The
+largest measured allocation reductions were:
+
+| Scenario | Baseline allocation | V6 allocation | Reduction |
+| --- | ---: | ---: | ---: |
+| `growth_demo_ml` | 7.80 MB | 3.13 MB | 59.9% |
+| `ri_clpm_synthetic_panel_ml` | 10.05 MB | 4.53 MB | 55.0% |
+| `sample_cov_holzinger_ml` | 2.23 MB | 1.17 MB | 47.6% |
+| `synthetic_large_cfa_ml` | 57.63 MB | 30.23 MB | 47.5% |
+| `mimic_holzinger_covariates_ml` | 11.35 MB | 6.34 MB | 44.2% |
+| `wisc_higher_order_cfa_ml` | 3.26 MB | 1.85 MB | 43.4% |
+| `mediation_path_sem_ml` | 0.91 MB | 0.52 MB | 42.6% |
+| `cfa_holzinger_ml` | 1.61 MB | 0.94 MB | 41.8% |
+
+The allocation result is especially useful because it is a mechanism check. A
+latency-only benchmark can be noisy; a latency improvement paired with lower
+allocation across many scenarios is stronger evidence that the internal work
+changed in the intended direction.
+
+## Full Matched Scenario Table
+
+| Scenario | Baseline median | V6 median | Speedup | Median reduction | Allocation reduction |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `cfa_holzinger_ml` | 44.45 ms | 10.02 ms | 4.44x | 77.5% | 41.8% |
+| `bootstrap_mediation_path_sem_ml` | 685.90 ms | 171.28 ms | 4.00x | 75.0% | n/a |
+| `mediation_path_sem_ml` | 41.78 ms | 10.83 ms | 3.86x | 74.1% | 42.6% |
+| `growth_demo_ml` | 65.55 ms | 17.31 ms | 3.79x | 73.6% | 59.9% |
+| `sample_cov_holzinger_ml` | 43.06 ms | 12.14 ms | 3.55x | 71.8% | 47.6% |
+| `ri_clpm_synthetic_panel_ml` | 75.12 ms | 21.38 ms | 3.51x | 71.5% | 55.0% |
+| `piecewise_growth_synthetic_ml` | 63.97 ms | 18.72 ms | 3.42x | 70.7% | 38.4% |
+| `multigroup_holzinger_loadings` | 92.27 ms | 27.35 ms | 3.37x | 70.4% | 37.5% |
+| `bifactor_synthetic_battery_ml` | 47.31 ms | 14.03 ms | 3.37x | 70.3% | 38.7% |
+| `parallel_process_growth_ml` | 55.41 ms | 16.73 ms | 3.31x | 69.8% | 41.7% |
+| `apim_verbal_performance_sem_ml` | 44.54 ms | 13.70 ms | 3.25x | 69.2% | 34.8% |
+| `multigroup_holzinger_invariance_postfit` | 269.04 ms | 89.31 ms | 3.01x | 66.8% | 39.0% |
+| `sem_political_democracy_ml` | 56.99 ms | 19.12 ms | 2.98x | 66.5% | 40.5% |
+| `wisc_higher_order_cfa_ml` | 52.79 ms | 17.99 ms | 2.93x | 65.9% | 43.4% |
+| `mimic_holzinger_covariates_ml` | 92.41 ms | 32.17 ms | 2.87x | 65.2% | 44.2% |
+| `mtmm_trait_method_sample_cov_ml` | 62.73 ms | 22.24 ms | 2.82x | 64.5% | 39.7% |
+| `synthetic_large_cfa_ml` | 80.27 ms | 29.49 ms | 2.72x | 63.3% | 47.5% |
+| `robust_clinical_path_mlr` | 59.69 ms | 24.16 ms | 2.47x | 59.5% | 20.2% |
+| `postfit_political_democracy_sem_ml` | 153.10 ms | 67.22 ms | 2.28x | 56.1% | n/a |
+| `fiml_holzinger_ml` | 412.16 ms | 200.24 ms | 2.06x | 51.4% | 28.8% |
+| `fiml_political_democracy_sem_ml` | 333.74 ms | 163.24 ms | 2.04x | 51.1% | 27.1% |
+| `conditional_x_ml` | 104.53 ms | 53.00 ms | 1.97x | 49.3% | 18.8% |
+| `ordinal_holzinger_wlsmv` | 134.91 ms | 81.92 ms | 1.65x | 39.3% | 5.6% |
+| `twolevel_demo_ml` | 342.44 ms | 220.71 ms | 1.55x | 35.5% | 14.3% |
+| `ordinal_latent_regression_wlsmv` | 239.02 ms | 156.73 ms | 1.53x | 34.4% | 2.4% |
+
+## Threats to Validity
+
+The evidence is strong enough to support a PR-level performance claim, but it
+has boundaries.
+
+First, this is a run-pair comparison on one environment. Both runs used R 4.6.0
+and the same benchmark harness shape, which helps comparability, but the result
+should still be replicated before treating the exact percentages as universal.
+
+Second, the PR is broad. Because many fast paths landed together, the benchmark
+does not identify how much of the total speedup belongs to baseline-model
+construction versus implied moments versus matrix helpers versus missing-data
+preparation. The evidence supports the combined intervention.
+
+Third, the benchmark scenarios are representative, not exhaustive. The fast
+paths deliberately fall back to existing general code for unsupported cases.
+That is good engineering, but it means the measured benefit will depend on how
+often real user workloads hit the newly supported shapes.
+
+Fourth, profiler sampling has finite resolution. The transcript is useful for
+identifying major hotspots and diagnostic rank changes, but the strongest
+claims in this post come from matched latency and allocation tables rather than
+from individual sampled call stacks.
+
+## Conclusion
+
+This PR is a good example of performance work that respects a mature statistical
+codebase. It does not replace lavaan's modeling language or statistical
+estimators. It changes the internal cost model: cache what the code already
+knows, compute related implied quantities together, avoid dense intermediates,
+and reserve the fully general path for models that need it.
+
+The measured result is large. Across 25 matched scenarios, _median latency_ fell
+from an average of 146.13 ms to 60.44 ms, with no median-latency regressions in
+the matched suite. Allocation also moved in the right direction, falling by
+29.9% in aggregate across scenarios where both runs recorded allocation data.
+
+For SEM users, this should shows up as a nicer feedback loop: fits
+return sooner, bootstrap and post-fit workflows spend less time on repeated
+internal work, and common model families benefit without asking the user to
+write different model syntax. For a PR, that is the sweet spot: the same
+interface, less waiting.
