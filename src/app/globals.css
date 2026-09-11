@@ -138,6 +138,73 @@
 }
 
 @layer components {
+  .hero-control-room {
+    --hero-surface: oklch(0.965 0.015 235);
+    --hero-raised: oklch(0.99 0.008 235 / 0.82);
+    --hero-highlight: oklch(0.92 0.025 220 / 0.72);
+    --hero-ink: oklch(0.255 0.028 235);
+    --hero-muted: oklch(0.47 0.025 235);
+    --hero-line: oklch(0.72 0.025 225 / 0.6);
+    --hero-grid: oklch(0.62 0.025 225 / 0.26);
+    isolation: isolate;
+    border-color: var(--hero-line);
+    background:
+      radial-gradient(
+        circle at 82% 10%,
+        color-mix(in oklch, var(--lab-accent) 18%, transparent),
+        transparent 38%
+      ),
+      radial-gradient(
+        circle at 16% 88%,
+        color-mix(in oklch, var(--lab-positive) 12%, transparent),
+        transparent 35%
+      ),
+      var(--hero-surface);
+    color: var(--hero-ink);
+    box-shadow: 0 22px 46px oklch(0.22 0.035 235 / 0.12);
+  }
+
+  .dark .hero-control-room {
+    --hero-surface: oklch(0.17 0.018 240);
+    --hero-raised: oklch(0.215 0.022 240 / 0.88);
+    --hero-highlight: oklch(0.265 0.032 230 / 0.86);
+    --hero-ink: oklch(0.94 0.012 220);
+    --hero-muted: oklch(0.7 0.025 220);
+    --hero-line: oklch(0.68 0.06 220 / 0.28);
+    --hero-grid: oklch(0.75 0.055 220 / 0.18);
+    background:
+      radial-gradient(
+        circle at 82% 10%,
+        color-mix(in oklch, var(--lab-accent) 30%, transparent),
+        transparent 38%
+      ),
+      radial-gradient(
+        circle at 16% 88%,
+        color-mix(in oklch, var(--lab-positive) 18%, transparent),
+        transparent 35%
+      ),
+      var(--hero-surface);
+    box-shadow:
+      0 26px 60px oklch(0 0 0 / 0.34),
+      inset 0 1px 0 oklch(1 0 0 / 0.05);
+  }
+
+  .hero-pipeline-node {
+    z-index: 1;
+    border: 1px solid var(--hero-line);
+    background: var(--hero-raised);
+    color: var(--hero-ink);
+    box-shadow: 0 8px 20px oklch(0.22 0.035 235 / 0.1);
+  }
+
+  .hero-pipeline-node-active {
+    border-color: color-mix(in oklch, var(--lab-accent) 74%, var(--hero-line));
+    background: color-mix(in oklch, var(--lab-accent) 12%, var(--hero-raised));
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, var(--lab-accent) 24%, transparent),
+      0 12px 28px color-mix(in oklch, var(--lab-accent) 17%, transparent);
+  }
+
   .prose-lab {
     @apply text-base leading-8 text-foreground;
   }
@@ -301,6 +368,10 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .hero-pipeline-node {
+      transition: none;
+    }
+
     .motion-reveal,
     .motion-fade-square,
     .motion-metric-scrub,
