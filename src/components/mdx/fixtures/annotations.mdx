@@ -1,0 +1,62 @@
+<AnnotatedPassage>
+  <AnnotatedPassage.Text>
+
+    Matrix multiplication benefits from **reusing data**.
+
+    A tile lets several operations share values that are already nearby.
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note title="My note">
+
+    Think about how often each value is loaded from memory.
+
+    - Count the loads as well as the arithmetic.
+    - Compare a small tile with a larger one.
+
+    Keep the *working set* small enough to reuse. The expression $a_i b_i$
+    represents one product, not the cost of bringing its operands into memory.
+
+    [Related writing](/writing) can help connect these observations with other
+    experiments. A longer note should make room for itself before the next passage.
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
+
+<AnnotatedPassage>
+  <AnnotatedPassage.Text>
+
+    Measure the effect of a change before drawing conclusions.
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note>
+
+    Repeat each measurement and record `elapsedTimeInNanoseconds`.
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
+
+<Disclosure title="Show a worked example">
+
+  For vectors of length $n$, the dot product is:
+
+  $$
+  a \cdot b = \sum_{i=1}^{n} a_i b_i
+  $$
+
+  ```js
+  const dot = a.reduce((sum, value, i) => sum + value * b[i], 0);
+  ```
+
+</Disclosure>
+
+<Callout title="Reading tip" type="info">
+
+  Review the memory hierarchy before continuing.
+
+</Callout>
+
+<Callout title="Benchmark caveat" type="warning">
+
+  Compare timings on the same hardware and with the same input sizes.
+
+</Callout>

@@ -1,5 +1,6 @@
 import type { MDXComponents } from "mdx/types";
 import Link from "next/link";
+import { AnnotatedPassage, Disclosure } from "@/components/mdx/annotations";
 import {
   Callout,
   LabChart,
@@ -51,6 +52,8 @@ export const mdxComponents: MDXComponents = {
     />
   ),
   pre: MdxPre,
+  AnnotatedPassage,
+  Disclosure,
   Callout,
   LabChart,
   LinkCard,
