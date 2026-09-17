@@ -1,8 +1,14 @@
 import type { ReactNode } from "react";
 
-function AnnotatedPassageRoot({ children }: { children: ReactNode }) {
+function AnnotatedPassageRoot({
+  children,
+  side = "right",
+}: {
+  children: ReactNode;
+  side?: "left" | "right";
+}) {
   return (
-    <div className="my-8 grid min-w-0 gap-6 xl:relative xl:left-1/2 xl:w-[min(92vw,68rem)] xl:-translate-x-1/2 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] xl:gap-8">
+    <div data-side={side} className="annotated-passage my-8 grid min-w-0 gap-6">
       {children}
     </div>
   );
@@ -10,7 +16,7 @@ function AnnotatedPassageRoot({ children }: { children: ReactNode }) {
 
 function PassageText({ children }: { children: ReactNode }) {
   return (
-    <div className="prose-lab min-w-0 [overflow-wrap:anywhere] [&>:first-child]:mt-0 [&>:last-child]:mb-0">
+    <div className="annotated-passage-text prose-lab min-w-0 [overflow-wrap:anywhere] [&>:first-child]:mt-0 [&>:last-child]:mb-0">
       {children}
     </div>
   );
@@ -26,7 +32,7 @@ function PassageNote({
   return (
     <aside
       aria-label={title || "Author note"}
-      className="min-w-0 self-start rounded-r-lg border-l-2 border-l-[var(--lab-accent)] bg-muted/40 p-5 [overflow-wrap:anywhere]"
+      className="annotated-passage-note min-w-0 self-start bg-muted/40 p-5 [overflow-wrap:anywhere]"
     >
       {title ? (
         <div className="mb-3 text-sm font-semibold text-foreground">{title}</div>

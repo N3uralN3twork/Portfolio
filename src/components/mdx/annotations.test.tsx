@@ -12,7 +12,10 @@ describe("MDX annotations", () => {
     );
     const html = renderToStaticMarkup(await renderMdx(source));
 
-    expect(html.match(/<aside\b/g)).toHaveLength(2);
+    expect(html.match(/<aside\b/g)).toHaveLength(3);
+    expect(html.match(/data-side="right"/g)).toHaveLength(2);
+    expect(html.match(/data-side="left"/g)).toHaveLength(1);
+    expect(html.indexOf("This passage stays")).toBeLessThan(html.indexOf('aria-label="Left note"'));
     expect(html).toContain('aria-label="My note"');
     expect(html).toContain('aria-label="Author note"');
     expect(html).toContain("<strong>reusing data</strong>");

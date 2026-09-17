@@ -209,6 +209,38 @@
     @apply text-base leading-8 text-foreground;
   }
 
+  .annotated-passage-note {
+    border-left: 2px solid var(--lab-accent);
+    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  }
+
+  @media (min-width: 80rem) {
+    .annotated-passage {
+      /* Symmetric margin tracks leave the center track exactly article-width. */
+      --annotation-margin: min(18rem, calc((100vw - 48rem) / 2 - 2rem));
+      grid-template-columns: var(--annotation-margin) minmax(0, 1fr) var(--annotation-margin);
+      width: calc(100% + 2 * var(--annotation-margin) + 3rem);
+      margin-inline: calc(-1 * var(--annotation-margin) - 1.5rem);
+    }
+
+    .annotated-passage > .annotated-passage-text {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    .annotated-passage > .annotated-passage-note {
+      grid-column: 3;
+      grid-row: 1;
+    }
+
+    .annotated-passage[data-side="left"] > .annotated-passage-note {
+      grid-column: 1;
+      border-left: 0;
+      border-right: 2px solid var(--lab-accent);
+      border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+    }
+  }
+
   .prose-lab > * {
     @apply my-5;
   }

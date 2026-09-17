@@ -30,9 +30,12 @@ can contain several paragraphs. The note title is optional.
 </AnnotatedPassage>
 ```
 
-At viewport widths of 1280px and above, the passage and note sit in a 2:1 grid
-that breaks out of the article column, centered and capped at 68rem. On smaller
-screens the note follows its passage. Long notes increase the row height, so
+The main passage keeps the same width and horizontal alignment as ordinary
+article text. At viewport widths of 1280px and above, notes sit in the right
+margin by default. Use `<AnnotatedPassage side="left">` to put a note in the
+left margin, or `side="right"` to choose the default explicitly. Margin notes
+adapt to the available space and are capped at 18rem wide. On smaller screens,
+notes on either side follow their passage. Long notes increase the row height, so
 consecutive annotations cannot overlap. Place these blocks at article level,
 not inside another annotation or a narrow card.
 
