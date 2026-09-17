@@ -17,13 +17,13 @@ status: published
 
 <Callout title="Reading tip" type="info">
 
-  Review the memory hierarchy before continuing.
+  This is not an easy read and it's probably best if you start with a different post.
 
 </Callout>
 
 <Callout title="Benchmark caveat" type="warning">
 
-  Compare timings on the same hardware and with the same input sizes.
+  Good luck and take your time!
 
 </Callout>
 
@@ -46,6 +46,23 @@ status: published
 
   </AnnotatedPassage.Note>
 </AnnotatedPassage>
+
+---
+
+<Disclosure title="Matrix Multiplication">
+
+  For vectors of length $n$, the dot product is:
+
+  $$
+  a \cdot b = \sum_{i=1}^{n} a_i b_i
+  $$
+
+  ```js
+  const dot = a.reduce((sum, value, i) => sum + value * b[i], 0);
+  ```
+
+</Disclosure>
+
 
 ---
 
