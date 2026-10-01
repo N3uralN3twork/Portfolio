@@ -30,14 +30,20 @@ can contain several paragraphs. The note title is optional.
 </AnnotatedPassage>
 ```
 
-The main passage keeps the same width and horizontal alignment as ordinary
-article text. At viewport widths of 1280px and above, notes sit in the right
-margin by default. Use `<AnnotatedPassage side="left">` to put a note in the
-left margin, or `side="right"` to choose the default explicitly. Margin notes
-adapt to the available space and are capped at 18rem wide. On smaller screens,
-notes on either side follow their passage. Long notes increase the row height, so
-consecutive annotations cannot overlap. Place these blocks at article level,
-not inside another annotation or a narrow card.
+The main passage keeps the same width and alignment as ordinary article text.
+Notes start hidden behind a small note icon. Hover over or click the icon to open
+a floating box with a light-orange outline. It stays open when the pointer moves
+away, so you can select text or follow links. Click outside, press Escape, or use
+the close button to dismiss it. Keyboard users can focus the icon and press Enter
+or Space; touch users can tap it.
+
+The popup overlays the page without reserving space, so long notes do not create
+large gaps. Long content scrolls inside the popup. At widths of 1280px and above,
+the icon sits in the right margin by default; use `<AnnotatedPassage side="left">`
+for the left margin. On smaller screens, the icon sits just above the passage at
+the right, and the popup stays within the viewport. Existing MDX syntax works
+unchanged. Place these blocks at article level, not inside another annotation or
+a narrow card.
 
 ## Expandable explanations
 

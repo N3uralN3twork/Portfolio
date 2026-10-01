@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { NotePopover } from "./note-popover";
 
 function AnnotatedPassageRoot({
   children,
@@ -8,7 +9,7 @@ function AnnotatedPassageRoot({
   side?: "left" | "right";
 }) {
   return (
-    <div data-side={side} className="annotated-passage my-8 grid min-w-0 gap-6">
+    <div data-side={side} className="annotated-passage relative my-8 min-w-0 pt-10 xl:pt-0">
       {children}
     </div>
   );
@@ -30,17 +31,7 @@ function PassageNote({
   children: ReactNode;
 }) {
   return (
-    <aside
-      aria-label={title || "Author note"}
-      className="annotated-passage-note min-w-0 self-start bg-muted/40 p-5 [overflow-wrap:anywhere]"
-    >
-      {title ? (
-        <div className="mb-3 text-sm font-semibold text-foreground">{title}</div>
-      ) : null}
-      <div className="prose-lab min-w-0 text-sm leading-7 [&>:first-child]:mt-0 [&>:last-child]:mb-0">
-        {children}
-      </div>
-    </aside>
+    <NotePopover title={title || "Author note"}>{children}</NotePopover>
   );
 }
 

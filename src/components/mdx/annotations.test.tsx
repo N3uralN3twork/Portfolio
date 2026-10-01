@@ -12,18 +12,15 @@ describe("MDX annotations", () => {
     );
     const html = renderToStaticMarkup(await renderMdx(source));
 
-    expect(html.match(/<aside\b/g)).toHaveLength(3);
+    expect(html.match(/aria-label="Read note:/g)).toHaveLength(3);
     expect(html.match(/data-side="right"/g)).toHaveLength(2);
     expect(html.match(/data-side="left"/g)).toHaveLength(1);
-    expect(html.indexOf("This passage stays")).toBeLessThan(html.indexOf('aria-label="Left note"'));
-    expect(html).toContain('aria-label="My note"');
-    expect(html).toContain('aria-label="Author note"');
+    expect(html).toContain('aria-label="Read note: Left note"');
+    expect(html).toContain('aria-label="Read note: My note"');
+    expect(html).toContain('aria-label="Read note: Author note"');
     expect(html).toContain("<strong>reusing data</strong>");
-    expect(html).toContain("<em>working set</em>");
-    expect(html).toContain("<li>Count the loads as well as the arithmetic.</li>");
-    expect(html).toContain('href="/writing"');
-    expect(html.indexOf("Matrix multiplication")).toBeLessThan(html.indexOf("<aside"));
-    expect(html.indexOf("</aside>")).toBeLessThan(html.indexOf("Measure the effect"));
+    expect(html).not.toContain("Think about how often");
+    expect(html).not.toContain('role="dialog"');
 
     const disclosure = html.match(/<details\b([^>]*)>([\s\S]*?)<\/details>/);
     expect(disclosure).not.toBeNull();
