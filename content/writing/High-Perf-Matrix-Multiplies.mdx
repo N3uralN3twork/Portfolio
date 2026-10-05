@@ -23,7 +23,8 @@ status: published
 
 <Callout title="Benchmark caveat" type="warning">
 
-  Good luck and take your time!
+  I want to treat the performance numbers here as results for a particular setup. Before comparing my own kernel, I'd check the GPU, matrix dimensions, input and accumulator precision, and whether the timings include data transfers. Am I measuring the same work?
+  Usually the answer is "No."
 
 </Callout>
 
@@ -37,12 +38,9 @@ status: published
     A tile lets several operations share values that are already nearby.
 
   </AnnotatedPassage.Text>
-  <AnnotatedPassage.Note title="My note">
+  <AnnotatedPassage.Note title="My starting intuition">
 
-    Think about how often each value is loaded from memory.
-
-    - Count the loads as well as the arithmetic.
-    - Compare a small tile with a larger one.
+    Coming from an algorithms course, I'm used to counting arithmetic operations. Here, I also need to ask how many times I fetch the same value. I'd like to trace one small tile by hand: which loads does it save, and when does making it larger stop helping?
 
   </AnnotatedPassage.Note>
 </AnnotatedPassage>
@@ -198,7 +196,18 @@ Figure 3: H100 SXM5 BF16 speed-of-light derivation
 
 I left one hint in the figure above: the "speed of light" is not actually constant (I guess this is where the analogy breaks down).
 
+<AnnotatedPassage side="right">
+  <AnnotatedPassage.Text>
+
 In practice, the peak throughput depends on the actual clock frequency, which can vary under power or thermal throttling. If the GPU clock drops, so does the effective speed of light:
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note title="Which ceiling am I comparing against?">
+
+    I'd normally treat peak throughput as a fixed number in a performance model, so this complicates my intuition. If two runs have different clock frequencies, how much of the timing difference comes from my kernel change? I'd want to record the clocks alongside the timings and ask whether my percentage of peak uses the advertised ceiling or the one available during the run.
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
 
 ![Figure 4: Power throttling reduces clock frequency and lowers the effective “speed of light”](https://www.aleksagordic.com/blog/matmul/clk.png)
 
@@ -312,7 +321,18 @@ Figure 10: SMEM model
 
 SMEM can serve data from all 32 banks (128B) in a single cycle — but only if one rule is respected:
 
+<AnnotatedPassage side="right">
+  <AnnotatedPassage.Text>
+
 **Threads in a warp must not access different addresses within the same bank. Otherwise, those requests are serialized across multiple cycles.**
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note title="Same bank or same address?">
+
+    I need to slow down here: sharing a bank and sharing an address sound similar, but the wording distinguishes them. What happens if every lane reads exactly the same value? Before tackling swizzling, I'd sketch the bank assignments for a few lanes accessing consecutive values versus a column.
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
 
 This situation is known as a **bank conflict**. If N threads access different addresses of the same bank, the result is an N-way bank conflict and the warp’s memory request takes N cycles to complete.
 
@@ -406,7 +426,18 @@ The human-readable form of an ISA is known as the **assembly**: instead of writi
 
 On NVIDIA GPUs, the native ISA is called SASS. Unfortunately, it is poorly documented—especially for the most recent GPU generations. Some older generations have been partially or fully reverse engineered, but official documentation remains limited. You can find the documentation [here](https://docs.nvidia.com/cuda/cuda-binary-utilities/index.html) [\[6\]](https://www.aleksagordic.com/blog/matmul#ref-6).
 
+<AnnotatedPassage side="right">
+  <AnnotatedPassage.Text>
+
 PTX is NVIDIA's **virtual ISA:** an instruction set for an abstract GPU. PTX code is not executed directly; instead, it is compiled by `ptxas` into the native ISA (SASS).
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note title="Connecting this to my compiler coursework">
+
+    I'm picturing PTX as an intermediate representation with another compilation step still to come. That makes me hesitant to count PTX instructions as a direct measure of hardware work. If I see a vectorized load in PTX, what should I look for in SASS to check that it became the instruction I intended? Could changing the target GPU change that lowering even when my source stays the same?
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
 
 The key advantage of PTX is forward compatibility. A CUDA program compiled to PTX a decade ago can still run on a modern GPU like Blackwell. It may not exploit the latest hardware features efficiently, but it will execute correctly.
 
@@ -564,7 +595,18 @@ This means we'll need 16,384 / 228 = ~71.86 so-called **waves** in order to comp
 
 In CUDA terminology, occupancy usually refers to the number of concurrent blocks that can run on an SM. There's also a closely related definition:
 
+<AnnotatedPassage side="right">
+  <AnnotatedPassage.Text>
+
 Occupancy (warps): the ratio of active warps to the maximum number of warps per SM.
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note title="Resident doesn't necessarily mean busy">
+
+    I keep wanting to read occupancy as the percentage of the GPU doing useful work, but this definition counts warps rather than completed operations. Could I have high occupancy while most warps are waiting on memory? I'd like to compare two tile sizes and see whether the one with fewer resident warps still wins by giving each thread more reusable data or independent work.
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
 
 Here, "active warps" means the warps of a thread block after they've been allocated resources (registers, SMEM, etc.) at launch.
 
@@ -767,7 +809,18 @@ for (int m = 0; m < M; m++) {
 }
 ```
 
+<AnnotatedPassage side="right">
+  <AnnotatedPassage.Text>
+
 The key point I want to make here is that the semantics are invariant to loop order. In other words, we can permute the three nested loops in any of the 3! = 6 ways, and the result will still be a correct matmul.
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note title="What stays equivalent?">
+
+    I read this as preserving the mathematical sum, provided I initialize and accumulate each output correctly. In the next version, where is `C` zeroed before the `+=` operations? And when later optimizations split the sum across threads or change precision, should I expect the same answer bit for bit, or compare with a tolerance?
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
 
 Out of these six permutations, the most interesting is the one with `K` as the outermost loop. (The relative ordering of m and n is less important, so let's assume the "canonical" `m-n` order):
 
@@ -810,6 +863,12 @@ Here's a visual intuition for why that matters:
 ![Figure 29: Arithmetic intensity improves when each thread computes multiple outputs and when tiles approach a square shape](https://www.aleksagordic.com/blog/matmul/arithmetic_intensity.png)
 
 Figure 29: Arithmetic intensity improves when each thread computes multiple outputs and when tiles approach a square shape
+
+<Callout title="My checkpoint before increasing tile size" type="info">
+
+  I want to keep two budgets on paper: bytes loaded for the input tiles and registers needed for the partial outputs. A tile that improves reuse still has to fit. How would I tell whether my next tile size saves memory traffic but leaves too few resources for other resident warps?
+
+</Callout>
 
 At this point we've gathered most of the pieces needed to understand warp-tiling. Let's put them together.
 
@@ -1286,7 +1345,18 @@ Here is an explanation of why we need 4 wgmma calls:
 
 Figure 39: Why doing four 64x16 @ 16x64 wgmma calls is equivalent to doing a 64x64 @ 64x64 matmul
 
+<AnnotatedPassage side="right">
+  <AnnotatedPassage.Text>
+
 The slightly mind-bending part here is the column-major representation: how `sB[0] … sB[48]` ends up mapping to the correct logical positions/slices.
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note title="Tracing the four partial products">
+
+    This is where I'd put down the code and draw the matrices. I think each call covers another slice of the reduction dimension and adds into the same output tile. Can I label the logical row and column reached by each `sB` offset, then check how the descriptor and swizzle map it to shared memory? I'm not yet comfortable reading those offsets as coordinates.
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
 
 But the key takeaway is that much of the warp-tiling and thread-tiling complexity we wrestled with earlier is now abstracted away in hardware. What used to require careful orchestration across warps has collapsed into a handful of boilerplate instructions and a few declarative wgmma calls.
 
@@ -1303,7 +1373,18 @@ We then split the work across two warp-groups:
 - One warp-group acts as the `producer`, responsible for keeping TMA busy by streaming new chunks of `A` and `B` into the queue.
 - The other warp-group acts as the `consumer`, drawing from the queue to keep the tensor cores saturated.
 
+<AnnotatedPassage side="right">
+  <AnnotatedPassage.Text>
+
 Naturally, this requires coordination. The mechanism we use is a queue of SMEM barriers, with one `full[i]`/`empty[i]` pair per slot in the queue to synchronize producer and consumer.
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note title="Proving a slot is safe to reuse">
+
+    This reminds me of the bounded-buffer problem from my concurrency coursework, except that issuing a copy or a matrix instruction doesn't mean it has finished. I'd trace one slot through empty, filling, full, and being consumed. Which wait proves the input bytes are ready, and which proves the tensor cores have finished reading them? When the queue wraps around, how do the barriers distinguish this use of the slot from the previous one?
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
 
 Reference: [kernel 4](https://github.com/pranjalssh/fast.cu/blob/main/examples/matmul/matmul_4.cuh#L270) code.
 
@@ -1431,7 +1512,18 @@ Figure 43: Persistent kernels: overlap the output store with incoming loads by l
 
 💡Persistent kernels
 
+<AnnotatedPassage side="right">
+  <AnnotatedPassage.Text>
+
 A persistent kernel launches a small, fixed number of thread blocks (often one per SM) and keeps them alive for the entire workload. Instead of launching a block per tile, each block runs an internal loop, pulling new tiles from a queue until the work is done.
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note title="Who assigns the next tile?">
+
+    This feels like moving part of the scheduling problem into my own program. I'd want to understand whether the queue here is a shared work queue or a conceptual description of a predetermined tile order. How does each block know which tile comes next, and how would I check that every output tile is assigned exactly once? What happens near the end if some blocks finish earlier than others?
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
 
 That raises the natural question: which subset of output tiles should each SM process, and in what order?
 
@@ -1457,9 +1549,20 @@ Figure 45: Block-wise cache-aware schedule
 
 But can we do even better? Surprisingly, yes—by using a space-filling curve:
 
+<AnnotatedPassage side="right">
+  <AnnotatedPassage.Text>
+
 ![Figure 46: Hilbert-curve schedule](https://www.aleksagordic.com/blog/matmul/hilbert_schedule.png)
 
 Figure 46: Hilbert-curve schedule
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note title="Turning geometric locality into data reuse">
+
+    I've seen Hilbert curves as a way to visit nearby points, but I need to connect those points to actual matrix loads. I'd pick two neighboring output tiles and list which chunks of `A` and `B` they share. Does the traversal keep those chunks in L2 long enough for another block to reuse them? I'd also ask how much the benefit depends on matrix shape and the order in which blocks actually execute.
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
 
 The final idea I'll cover in depth is to exploit Hopper's new cluster-level CUDA execution model to cut down on L2/GMEM traffic:
 

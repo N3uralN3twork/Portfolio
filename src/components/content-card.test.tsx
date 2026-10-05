@@ -20,6 +20,8 @@ describe("ContentCard", () => {
         links: [],
         featured: false,
         cardImage: "/images/sample-card.png",
+        bannerImage: undefined,
+        difficulty: undefined,
         imageAlt: "Sample chart preview",
       },
       body: "Body copy",
