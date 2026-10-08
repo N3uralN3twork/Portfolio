@@ -107,7 +107,18 @@ If you spot any errors in the post, please DM me - feel free to drop me a messag
 
 ## Memory
 
+<AnnotatedPassage side="right">
+  <AnnotatedPassage.Text>
+
 The memory system in a GPU is highly hierarchical, much like in CPU architectures.
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note title="Following one value through memory">
+
+    I recognize this hierarchy from computer architecture, but I'd like to follow one matrix element through an actual kernel. Which movements happen automatically through caches, and which do I explicitly program? I think drawing that path would help me avoid treating shared memory as just another cache.
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
 
 This hierarchy is dictated by physics and circuit design: SRAM cells are faster but larger (the control circuitry that enables their speed also increases their area), while DRAM cells are smaller / denser but slower. The result is that fast memory is lower capacity and expensive, while slower memory can be provided in much larger quantities. We will cover DRAM cell/memory in more detail later.
 
@@ -223,7 +234,18 @@ Next, we'll shift our focus to the CUDA programming model, before diving one lev
 
 ## CUDA programming model
 
+<AnnotatedPassage side="right">
+  <AnnotatedPassage.Text>
+
 The CUDA programming model naturally maps onto the GPU hardware and memory hierarchy.
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note title="Logical coordinates versus physical placement">
+
+    I need to keep the logical grid separate from the hardware drawing. If I put two blocks next to each other in the grid, does that imply anything about which SMs execute them? I'd also ask which cooperation requires threads to share a block and which needs the cluster abstraction introduced here.
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
 
 The key abstractions are:
 
@@ -361,7 +383,18 @@ This is an excellent [blog post](https://feldmann.nyc/blog/smem-microbenchmarks)
 
 ## L1 Model
 
+<AnnotatedPassage side="right">
+  <AnnotatedPassage.Text>
+
 We've already seen that L1 and SMEM share the same physical storage, but L1 adds a hardware-managed scaffolding layer around that storage.
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note title="Choosing what I manage myself">
+
+    I'm wondering when explicit shared-memory staging earns its extra code and synchronization. If the cache already captures my reuse, what additional benefit would staging provide? I'd want to compare access patterns before assuming that giving more storage to SMEM is always the right choice.
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
 
 At a high level, the logic flow of the L1 cache is:
 
@@ -534,7 +567,18 @@ You can observe a few things here:
 - We tile the output matrix using as many 32×32 thread blocks (1024 threads) as possible.
 - If `M` or `N` are not divisible by 32, some threads fall outside the valid output region of `C`. That's why we include a guard in the code.
 
+<AnnotatedPassage side="right">
+  <AnnotatedPassage.Text>
+
 The last two points combined lead to a phenomenon commonly known as the **tile quantization:**
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note title="Checking the edges of the matrix">
+
+    I'd like to count valid outputs versus launched threads for the 33-by-33 example instead of relying only on the picture. Where do the boundary checks go, and what happens to partially filled input tiles in a shared-memory version? I want to distinguish wasted work from an out-of-bounds access that would make the kernel incorrect.
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
 
 ![Figure 17: Tile quantization](https://www.aleksagordic.com/blog/matmul/tile_quantization.png)
 
@@ -622,7 +666,18 @@ For example, suppose I launch a kernel with 114 blocks (exactly the number of SM
 
 ![Figure 21: Wave quantization](https://www.aleksagordic.com/blog/matmul/wave_quant.png)
 
+<AnnotatedPassage side="right">
+  <AnnotatedPassage.Text>
+
 Figure 21: Wave quantization
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note title="A nearly empty final wave">
+
+    The jump from 114 to 115 blocks makes the scheduling cost concrete for me. I'm reading the near doubling as an example where blocks take similar time and only one fits per SM. How would unequal block runtimes change the picture? I'd try sizes just below and above a wave boundary to see whether the timing has the staircase shape suggested here.
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
 
 With this basic analysis of the naive matmul kernel in place, let's now turn to the PTX/SASS view. Here are the compilation settings I used ( [Godbolt](https://godbolt.org/#g:!((g:!((g:!((h:codeEditor,i:(filename:'1',fontScale:14,fontUsePx:'0',j:1,lang:cuda,selection:(endColumn:42,endLineNumber:16,positionColumn:42,positionLineNumber:16,selectionStartColumn:42,selectionStartLineNumber:16,startColumn:42,startLineNumber:16),source:'//+__global__+keyword+declares+a+GPU+kernel%0A__global__+void+naive_kernel(int+M,+int+N,+int+K,+float+alpha,%0A++++++++++++++++++++++++++++++++++++++++++const+float+*A,+const+float+*B,%0A++++++++++++++++++++++++++++++++++++++++++float+beta,+float+*C)+%7B%0A++int+BLOCKSIZE%3D32%3B%0A%0A++const+int+row+%3D+blockIdx.x+*+BLOCKSIZE+%2B+(threadIdx.x+/+BLOCKSIZE)%3B%0A++const+int+col+%3D+blockIdx.y+*+BLOCKSIZE+%2B+(threadIdx.x+%25+BLOCKSIZE)%3B%0A%0A++if+(row+%3C+M+%26%26+col+%3C+N)+%7B++//+guard+in+case+some+threads+are+outside+the+range%0A++++float+tmp+%3D+0.0%3B%0A++++//+compute+dot+product%0A++++for+(int+i+%3D+0%3B+i+%3C+K%3B+%2B%2Bi)+%7B%0A++++++tmp+%2B%3D+A%5Brow+*+K+%2B+i%5D+*+B%5Bi+*+N+%2B+col%5D%3B%0A++++%7D%0A++++//+GEMM:+C+%3D+alpha+*+A+@+B+%2B+beta+*+C%0A++++C%5Brow+*+N+%2B+col%5D+%3D+alpha+*+tmp+%2B+beta+*+C%5Brow+*+N+%2B+col%5D%3B%0A++%7D%0A%7D'),l:'5',n:'0',o:'CUDA+C%2B%2B+source+%231',t:'0')),header:(),k:31.19733490103861,l:'4',m:100,n:'0',o:'',s:0,t:'0'),(g:!((h:compiler,i:(compiler:nvcc125u1,filters:(b:'0',binary:'1',binaryObject:'1',commentOnly:'0',debugCalls:'1',demangle:'0',directives:'0',execute:'1',intel:'0',libraryCode:'0',trim:'1',verboseDemangling:'0'),flagsViewOpen:'1',fontScale:14,fontUsePx:'0',j:1,lang:cuda,libs:!(),options:'+-O3+-DNDEBUG+--generate-code%3Darch%3Dcompute_90,code%3D%5Bcompute_90,sm_90a%5D+--ptxas-options%3D-v+-std%3Dc%2B%2B17',overrides:!(),selection:(endColumn:1,endLineNumber:1,positionColumn:1,positionLineNumber:1,selectionStartColumn:1,selectionStartLineNumber:1,startColumn:1,startLineNumber:1),source:1),l:'5',n:'0',o:'+NVCC+12.5.1+(Editor+%231)',t:'0')),header:(),k:35.46933176562806,l:'4',n:'0',o:'',s:0,t:'0'),(g:!((h:device,i:(compilerName:'NVCC+12.5.1',device:PTX,editorid:1,fontScale:14,fontUsePx:'0',j:1,selection:(endColumn:1,endLineNumber:1,positionColumn:1,positionLineNumber:1,selectionStartColumn:1,selectionStartLineNumber:1,startColumn:1,startLineNumber:1),treeid:0),l:'5',n:'0',o:'Device+Viewer+NVCC+12.5.1+(Editor+%231,+Compiler+%231)',t:'0')),k:33.33333333333333,l:'4',n:'0',o:'',s:0,t:'0')),l:'2',n:'0',o:'',t:'0')),version:4)):
 
@@ -687,7 +742,18 @@ c2 = a2 * b2 + 1.0;
 
 Three independent FMAs => the scheduler can issue them in consecutive cycles. Issue at cycles 0,1,2 results ready at 4,5,6 => total latency = 6 cycles.
 
+<AnnotatedPassage side="right">
+  <AnnotatedPassage.Text>
+
 That's why loop unrolling/ILP matters.
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note title="Unrolling doesn't erase dependencies">
+
+    I understand the independent FMA example, but I still need to connect it to the accumulator in the matmul loop. If every update uses the previous sum, which instructions become independent after unrolling? I'd look for loads that can move earlier or separate accumulators, then check whether the added registers change how many warps can stay resident.
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
 
 For debugging, you might want to disable loop unrolling to make PTX/SASS analysis easier. Just add: `#pragma unroll 1`.
 
@@ -775,7 +841,18 @@ And here's what the modified kernel does now:
 
 Figure 25: Naive kernel with uncoalesced GMEM access
 
+<AnnotatedPassage side="right">
+  <AnnotatedPassage.Text>
+
 That seemingly harmless tweak makes our GMEM access non-coalesced.
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note title="Tracing addresses across a warp">
+
+    My first instinct would be to trace one thread's loop, but that misses the relationship between lanes. I'd write down the addresses requested by lanes 0 through 3 at the same loop iteration, before and after the swap. Which matrix access changes from nearby addresses to strided ones, and what happens to the output stores?
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
 
 On my H100 PCIe card, performance dropped from 3171 GFLOP/s to just 243 GFLOP/s — a 13× slowdown. Exactly the kind of penalty we saw earlier in the GMEM section (the Stephen Jones strided GMEM access experiment).
 
@@ -1157,7 +1234,18 @@ Figure 36: No bank conflicts when loading rows or columns
 
 The same property holds for stores. For example, if you wanted to transpose a matrix in SMEM, the naïve way would be: load a row and then write it back as a column. Without swizzling, that would cause an 8-way bank conflict.
 
+<AnnotatedPassage side="right">
+  <AnnotatedPassage.Text>
+
 With swizzling enabled, we escape this problem, but you do have to be careful with indexing.
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note title="Changing the layout, preserving the matrix">
+
+    I think of swizzling as changing where a value lives rather than changing which logical element it is. Could I take one coordinate, calculate its swizzled address, and then trace how the consumer finds it? I'd want to verify both sides agree on the layout before celebrating the absence of bank conflicts.
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
 
 📝Note
 
@@ -1240,7 +1328,18 @@ Figure 37: Swizzle function intuition
 
 For 32B and 64B swizzling modes the swizzling functions are `0bxxxxxxxx_IxxZxxxx` and `0bxxxxxxxH_IxYZxxxx`.
 
+<AnnotatedPassage side="right">
+  <AnnotatedPassage.Text>
+
 These follow the same XOR-with-mask idea, just with different control bits driving which lower bits get flipped.
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note title="Working through the bits by hand">
+
+    This is the point where I'd choose a concrete byte offset and write it in binary. Which bits identify the chunk, which select the position inside it, and which affect the bank? I also want to check whether applying the same transformation twice recovers the original offset here, and what assumptions about the unchanged control bits make that work.
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
 
 How does all this connect back to the motivating example we started with?
 
@@ -1325,7 +1424,18 @@ It's really just boilerplate. In fact, if you comment it out, the compiler will 
 
 `wgmma.wait_group 0` \- means: don't go any further until every group prior to this point has finished. Since we only launched one group here, it's just saying "hold on until those four MMAs are done and the results are actually sitting in the accumulator registers".
 
+<AnnotatedPassage side="right">
+  <AnnotatedPassage.Text>
+
 So the standard rhythm is: fence → fire off a batch of async MMAs → commit them → wait for them to finish.
+
+  </AnnotatedPassage.Text>
+  <AnnotatedPassage.Note title="Ordering versus completion">
+
+    I'd like to label each step with the guarantee it provides. Does the fence establish ordering while the wait establishes completion? What does committing the group add, and when can I safely read the accumulator? Coming from CPU concurrency, I need to resist treating every synchronization instruction as interchangeable.
+
+  </AnnotatedPassage.Note>
+</AnnotatedPassage>
 
 Now onto the wgmma itself. `wgmma64` function is a wrapper around inline PTX call:
 
